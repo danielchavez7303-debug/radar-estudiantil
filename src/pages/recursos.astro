@@ -39,30 +39,39 @@ const estadoLabel: Record<string, string> = {
 				<a class="catalog-back-link" href={`${baseUrl}oportunidades`}>Explorar todo el catálogo ↗</a>
 			</div>
 
-			<div class="catalog-grid">
-				{recursos.map((recurso) => (
-					<article class={`opportunity-card opportunity-${recurso.id}`}>
-						<div class="opportunity-card-topline">
-							<span class="opportunity-type">{recurso.categoria}</span>
-							<span class="opportunity-status">{estadoLabel[recurso.estado] ?? recurso.estado}</span>
-						</div>
-						<h3><a href={`${baseUrl}oportunidades/${recurso.slug}`}>{recurso.titulo}</a></h3>
-						<p>{recurso.descripcion}</p>
-						<div class="opportunity-details">
-							<span><strong>Para:</strong> {recurso.niveles.slice(0, 2).join(' · ')}</span>
-							<span><strong>Costo:</strong> {recurso.costo}</span>
-						</div>
-						<div class="opportunity-verification"><span aria-hidden="true">✓</span> Verificado {recurso.ultimaVerificacion}</div>
-						<div class="opportunity-card-footer">
-							<span>{recurso.organizacion}</span>
-							<a href={`${baseUrl}oportunidades/${recurso.slug}`}>Ver ficha <span aria-hidden="true">↗</span></a>
-						</div>
-					</article>
-				))}
-			</div>
+			{recursos.length > 0 ? (
+				<div class="catalog-grid">
+					{recursos.map((recurso) => (
+						<article class={`opportunity-card opportunity-${recurso.id}`}>
+							<div class="opportunity-card-topline">
+								<span class="opportunity-type">{recurso.categoria}</span>
+								<span class="opportunity-status">{estadoLabel[recurso.estado] ?? recurso.estado}</span>
+							</div>
+							<h3><a href={`${baseUrl}oportunidades/${recurso.slug}`}>{recurso.titulo}</a></h3>
+							<p>{recurso.descripcion}</p>
+							<div class="opportunity-details">
+								<span><strong>Para:</strong> {recurso.niveles.slice(0, 2).join(' · ')}</span>
+								<span><strong>Modalidad:</strong> {recurso.modalidad}</span>
+								<span><strong>Costo:</strong> {recurso.costo}</span>
+							</div>
+							<div class="opportunity-verification"><span aria-hidden="true">✓</span> Verificado {recurso.ultimaVerificacion}</div>
+							<div class="opportunity-card-footer">
+								<span>{recurso.organizacion}</span>
+								<a href={`${baseUrl}oportunidades/${recurso.slug}`}>Ver ficha <span aria-hidden="true">↗</span></a>
+							</div>
+						</article>
+					))}
+				</div>
+			) : (
+				<div class="catalog-empty" role="status">
+					<span aria-hidden="true">✦</span>
+					<h2>Pronto habrá recursos aquí.</h2>
+					<p>Estamos preparando una selección de cursos, herramientas y beneficios revisados.</p>
+					<a class="empty-action" href={`${baseUrl}oportunidades`}>Explorar oportunidades</a>
+				</div>
+			)}
 
 			<p class="catalog-disclaimer"><span aria-hidden="true">✦</span> Revisa siempre las condiciones actuales en el sitio oficial antes de utilizar un recurso.</p>
 		</section>
 	</main>
 </BaseLayout>
-

@@ -4,6 +4,7 @@ import oportunidades from '../../data/oportunidades.json';
 import '../../styles/opportunity.css';
 
 const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
+const siteOrigin = Astro.site ?? new URL('https://radarestudiantil.pages.dev');
 export function getStaticPaths() {
 	return oportunidades.filter((oportunidad) => oportunidad.publicar && oportunidad.estadoVerificacion === 'verificada').map((oportunidad) => ({
 		params: { slug: oportunidad.slug },
@@ -12,6 +13,8 @@ export function getStaticPaths() {
 }
 
 const { oportunidad } = Astro.props;
+const detailPublicUrl = new URL(`/oportunidades/${oportunidad.slug}`, siteOrigin).toString();
+const reportIssueUrl = `https://github.com/danielchavez7303-debug/radar-estudiantil/issues/new?title=${encodeURIComponent(`Información desactualizada: ${oportunidad.titulo}`)}&body=${encodeURIComponent(`Ficha: ${detailPublicUrl}\n\nDescribe qué información debería revisarse:`)}`;
 const estadoLabel: Record<string, string> = {
 	activa: 'Activa',
 	proxima: 'Próxima',
@@ -26,12 +29,75 @@ const fecha = (valor: string | null) =>
 	valor
 		? new Intl.DateTimeFormat('es-MX', { dateStyle: 'long' }).format(new Date(`${valor}T12:00:00`))
 		: null;
+const youtubeEmbedUrl = (valor: string | null) => {
+	if (!valor) return null;
+	try {
+		const url = new URL(valor);
+		let videoId = '';
+		if (url.hostname === 'youtu.be') videoId = url.pathname.slice(1);
+		if (['youtube.com', 'www.youtube.com', 'm.youtube.com'].includes(url.hostname)) {
+			if (url.pathname === '/watch') videoId = url.searchParams.get('v') ?? '';
+			if (url.pathname.startsWith('/shorts/')) videoId = url.pathname.split('/')[2] ?? '';
+			if (url.pathname.startsWith('/embed/')) videoId = url.pathname.split('/')[2] ?? '';
+		}
+		return /^[a-zA-Z0-9_-]{11}$/.test(videoId) ? `https://www.youtube-nocookie.com/embed/${videoId}?rel=0` : null;
+	} catch {
+		return null;
+	}
+};
+const multimedia = oportunidad.multimedia;
+const multimediaYoutubeUrl = youtubeEmbedUrl(multimedia?.tipo === 'youtube' ? multimedia.url : null);
+const multimediaIsOfficial = multimedia?.fuente === 'oficial';
+const multimediaNote = multimediaIsOfficial
+	? 'Confirma fechas, requisitos y condiciones en la fuente escrita.'
+	: 'Este recurso es externo y puede quedar desactualizado. Confirma fechas, requisitos y condiciones en la fuente oficial.';
+const relacionadas = oportunidades
+	.filter((item) => item.publicar && item.estadoVerificacion === 'verificada' && item.slug !== oportunidad.slug)
+	.map((item) => {
+		const sameCategory = item.categoria === oportunidad.categoria ? 3 : 0;
+		const sharedAreas = item.areas.filter((area) => oportunidad.areas.includes(area)).length;
+		const sharedLevels = item.niveles.filter((nivel) => oportunidad.niveles.includes(nivel)).length;
+		return { item, score: sameCategory + sharedAreas * 2 + sharedLevels };
+	})
+	.filter(({ score }) => score > 0)
+	.sort((a, b) => b.score - a.score)
+	.slice(0, 3)
+	.map(({ item }) => item);
+const detailSchema = {
+	'@context': 'https://schema.org',
+	'@graph': [
+		{
+			'@type': 'Article',
+			'headline': oportunidad.titulo,
+			'description': oportunidad.descripcion,
+			'url': detailPublicUrl,
+			'dateModified': oportunidad.ultimaVerificacion ?? undefined,
+			'inLanguage': 'es-MX',
+			'keywords': oportunidad.areas.join(', '),
+			'isAccessibleForFree': oportunidad.costo.toLocaleLowerCase('es-MX').includes('gratuito'),
+			'publisher': {
+				'@type': 'Organization',
+				'name': 'Radar Estudiantil',
+				'url': siteOrigin.toString(),
+			},
+		},
+		{
+			'@type': 'BreadcrumbList',
+			'itemListElement': [
+				{ '@type': 'ListItem', 'position': 1, 'name': 'Inicio', 'item': siteOrigin.toString() },
+				{ '@type': 'ListItem', 'position': 2, 'name': 'Oportunidades', 'item': new URL('/oportunidades', siteOrigin).toString() },
+				{ '@type': 'ListItem', 'position': 3, 'name': oportunidad.titulo, 'item': detailPublicUrl },
+			],
+		},
+	],
+};
 ---
 
 <BaseLayout
 	title={`${oportunidad.titulo} | Radar Estudiantil`}
 	description={oportunidad.descripcion}
 >
+	<script type="application/ld+json" is:inline set:html={JSON.stringify(detailSchema)} />
 		<main class="detail-page" id="top" data-opportunity-slug={oportunidad.slug}>
 		<div class="detail-wrap">
 			<nav class="breadcrumbs" aria-label="Ruta de navegación">
@@ -54,8 +120,8 @@ const fecha = (valor: string | null) =>
 						<button class="detail-action" data-share-opportunity type="button"><span aria-hidden="true">↗</span><span>Compartir</span></button>
 						<span class="detail-action-feedback" data-action-feedback role="status" hidden></span>
 					</div>
+					{fecha(oportunidad.ultimaVerificacion) && <p class="detail-updated"><span aria-hidden="true">✓</span> Ficha revisada el {fecha(oportunidad.ultimaVerificacion)}</p>}
 				</div>
-				<div class="detail-hero-index" aria-hidden="true">Ficha<br /><strong>01</strong></div>
 			</section>
 
 			<div class="detail-layout">
@@ -108,8 +174,11 @@ const fecha = (valor: string | null) =>
 						<p class="aside-kicker">En resumen</p>
 						<dl>
 							<div><dt>Estado</dt><dd>{estadoLabel[oportunidad.estado] ?? oportunidad.estado}</dd></div>
+							{fecha(oportunidad.ultimaVerificacion) && <div><dt>Actualizada</dt><dd>{fecha(oportunidad.ultimaVerificacion)}</dd></div>}
 							<div><dt>Para</dt><dd>{oportunidad.niveles.join(' · ')}</dd></div>
 							<div><dt>Cobertura</dt><dd>{oportunidad.cobertura}</dd></div>
+							<div><dt>Modalidad</dt><dd>{oportunidad.modalidad}</dd></div>
+							<div><dt>Institución</dt><dd>{oportunidad.tipoInstitucion}</dd></div>
 							<div><dt>Costo</dt><dd>{oportunidad.costo}</dd></div>
 							{(oportunidad.edadMinima || oportunidad.edadMaxima) && <div><dt>Edad</dt><dd>{oportunidad.edadMinima ?? '—'}–{oportunidad.edadMaxima ?? 'sin límite'}</dd></div>}
 							<div><dt>Requiere escuela</dt><dd>{oportunidad.requiereEscuela ? 'Sí' : 'No especificado'}</dd></div>
@@ -141,20 +210,74 @@ const fecha = (valor: string | null) =>
 					</div>
 
 					<div class="source-card">
-						<p class="aside-kicker">Fuente y contacto</p>
-						<h2>{oportunidad.organizacion}</h2>
-						{ oportunidad.enlaceConvocatoria ? (
-							<a class="source-action" href={oportunidad.enlaceConvocatoria} target="_blank" rel="noreferrer">Ir a la convocatoria oficial <span aria-hidden="true">↗</span></a>
-						) : (
-							<p class="source-pending">El enlace oficial se integrará después de verificar esta ficha.</p>
-						) }
-						{ oportunidad.sitioOficial && oportunidad.sitioOficial !== oportunidad.enlaceConvocatoria ? <a class="source-secondary" href={oportunidad.sitioOficial} target="_blank" rel="noreferrer">Visitar sitio oficial ↗</a> : null }
-						{ oportunidad.contactoOficial ? <p class="contact-line">Contacto: {oportunidad.contactoOficial}</p> : null }
-						<div class="verification-line"><span aria-hidden="true">✦</span>{oportunidad.ultimaVerificacion ? `Última verificación: ${fecha(oportunidad.ultimaVerificacion)}` : 'Verificación editorial pendiente'}</div>
+						<div class="source-card-heading">
+							<div>
+								<p class="aside-kicker">Fuente oficial</p>
+								<h2>{oportunidad.organizacion}</h2>
+							</div>
+							<span class="source-badge"><span aria-hidden="true">✓</span> {oportunidad.estadoVerificacion === 'verificada' ? 'Verificada' : 'En revisión'}</span>
+						</div>
+						<div class="source-links">
+							{ oportunidad.enlaceConvocatoria ? (
+								<a class="source-action" href={oportunidad.enlaceConvocatoria} target="_blank" rel="noreferrer"><span>Ir a la convocatoria oficial</span><span aria-hidden="true">↗</span></a>
+							) : oportunidad.sitioOficial ? (
+								<a class="source-action" href={oportunidad.sitioOficial} target="_blank" rel="noreferrer"><span>Visitar sitio oficial</span><span aria-hidden="true">↗</span></a>
+							) : (
+								<p class="source-pending">El enlace oficial se integrará después de verificar esta ficha.</p>
+							) }
+							{ oportunidad.sitioOficial && oportunidad.sitioOficial !== oportunidad.enlaceConvocatoria ? <a class="source-secondary" href={oportunidad.sitioOficial} target="_blank" rel="noreferrer"><span>Visitar sitio informativo</span><span aria-hidden="true">↗</span></a> : null }
+						</div>
+						<div class="contact-block">
+							<p class="contact-label">Contacto oficial</p>
+							{ oportunidad.contactoOficial ? <p class="contact-line">{oportunidad.contactoOficial}</p> : null }
+							{ oportunidad.correoOficial ? <a class="contact-link" href={`mailto:${oportunidad.correoOficial}`}>✉ {oportunidad.correoOficial}</a> : null }
+							{ oportunidad.telefonoOficial ? <a class="contact-link" href={`tel:${oportunidad.telefonoOficial}`}>⌕ {oportunidad.telefonoOficial}</a> : null }
+							{ !oportunidad.contactoOficial && !oportunidad.correoOficial && !oportunidad.telefonoOficial ? <p class="contact-empty">No hay contacto directo publicado. Utiliza el sitio oficial.</p> : null }
+						</div>
+						<div class="verification-line"><span aria-hidden="true">✦</span>{oportunidad.ultimaVerificacion ? `Ficha revisada: ${fecha(oportunidad.ultimaVerificacion)}` : 'Verificación editorial pendiente'}</div>
 						<p class="source-disclaimer">Radar Estudiantil no organiza ni gestiona esta oportunidad. La institución oficial tiene la última palabra.</p>
+						<a class="report-link" href={reportIssueUrl} target="_blank" rel="noreferrer">Reportar información desactualizada <span aria-hidden="true">↗</span></a>
 					</div>
 				</aside>
 			</div>
+
+			{multimedia && multimediaYoutubeUrl && <section class="detail-multimedia" aria-labelledby="multimedia-titulo">
+				<div class="detail-multimedia-heading">
+					<div>
+						<p class="detail-kicker">Multimedia</p>
+						<h2 id="multimedia-titulo">{multimedia.titulo}</h2>
+					</div>
+					<span>{multimediaIsOfficial ? 'Fuente oficial' : 'Recurso externo · YouTube'}</span>
+				</div>
+				<div class="video-frame">
+					<iframe src={multimediaYoutubeUrl} title={`Multimedia sobre ${oportunidad.titulo}`} loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+				</div>
+				<p class="detail-multimedia-note">{multimediaNote} <a href={multimedia.url} target="_blank" rel="noreferrer">Abrir recurso ↗</a></p>
+			</section>}
+
+			{relacionadas.length > 0 && <section class="related-section" aria-labelledby="relacionadas-titulo">
+				<div class="related-heading">
+					<div>
+						<p class="detail-kicker">También puede interesarte</p>
+						<h2 id="relacionadas-titulo">Sigue explorando.</h2>
+					</div>
+					<a href={`${baseUrl}oportunidades`}>Ver todo el catálogo <span aria-hidden="true">↗</span></a>
+				</div>
+				<div class="related-grid">
+					{relacionadas.map((relacionada) => (
+						<article class={`related-card opportunity-${relacionada.id}`}>
+							<div class="related-card-topline">
+								<span class="opportunity-type">{relacionada.categoria}</span>
+								<span class="opportunity-status">{estadoLabel[relacionada.estado] ?? relacionada.estado}</span>
+							</div>
+							<h3><a href={`${baseUrl}oportunidades/${relacionada.slug}`}>{relacionada.titulo}</a></h3>
+							<p>{relacionada.descripcion}</p>
+							<div class="related-card-meta"><span>{relacionada.cobertura}</span><span>{relacionada.costo}</span></div>
+							<a class="related-card-link" href={`${baseUrl}oportunidades/${relacionada.slug}`}>Ver ficha <span aria-hidden="true">↗</span></a>
+						</article>
+					))}
+				</div>
+			</section>}
 
 			<div class="detail-back"><a href={`${baseUrl}oportunidades`}>← Volver a todas las oportunidades</a></div>
 		</div>
@@ -253,4 +376,3 @@ const fecha = (valor: string | null) =>
 		});
 	</script>
 </BaseLayout>
-

@@ -6,4 +6,3 @@ export default defineConfig({
 	site: 'https://radarestudiantil.pages.dev',
 	base: '/',
 });
-

@@ -18,9 +18,19 @@ const estadoLabel: Record<string, string> = {
 
 const tipos = [...new Set(oportunidadesPublicas.map((oportunidad) => oportunidad.categoria))];
 const areas = [...new Set(oportunidadesPublicas.flatMap((oportunidad) => oportunidad.areas))];
-const estados = [...new Set(oportunidadesPublicas.flatMap((oportunidad) => oportunidad.estados))];
 const niveles = [...new Set(oportunidadesPublicas.flatMap((oportunidad) => oportunidad.niveles))];
 const costos = [...new Set(oportunidadesPublicas.map((oportunidad) => oportunidad.costo))];
+const tiposInstitucion = [...new Set(oportunidadesPublicas.map((oportunidad) => oportunidad.tipoInstitucion))].sort((a, b) => a.localeCompare(b, 'es-MX'));
+const entidadesFederativas = [
+	"Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas", "Chihuahua", "Ciudad de México", "Coahuila", "Colima", "Durango", "Estado de México", "Guanajuato", "Guerrero", "Hidalgo", "Jalisco", "Michoacán", "Morelos", "Nayarit", "Nuevo León", "Oaxaca", "Puebla", "Querétaro", "Quintana Roo", "San Luis Potosí", "Sinaloa", "Sonora", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatán", "Zacatecas",
+];
+const ubicaciones = ['Nacional', 'En línea', ...entidadesFederativas];
+const categoriasResumen = Object.entries(
+	oportunidadesPublicas.reduce<Record<string, number>>((totales, oportunidad) => {
+		totales[oportunidad.categoria] = (totales[oportunidad.categoria] ?? 0) + 1;
+		return totales;
+	}, {}),
+).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es-MX'));
 const formatDate = (valor: string | null) =>
 	valor ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium' }).format(new Date(`${valor}T12:00:00`)) : null;
 const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
@@ -29,6 +39,11 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 		oportunidad.categoria,
 		oportunidad.descripcion,
 		oportunidad.organizacion,
+		oportunidad.tipoInstitucion,
+		oportunidad.cobertura,
+		oportunidad.modalidad,
+		oportunidad.paraQuien,
+		oportunidad.costo,
 		...oportunidad.areas,
 		...oportunidad.niveles,
 		...oportunidad.estados,
@@ -50,11 +65,39 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 					<h1 id="catalogo-titulo">Encuentra algo que te impulse.</h1>
 					<p>Busca por palabra, tipo o área. El catálogo crecerá con oportunidades revisadas y organizadas.</p>
 				</div>
-				<div class="catalog-hero-stat"><strong>{oportunidadesPublicas.length}</strong><span>registros iniciales<br />por explorar</span></div>
+				<div class="catalog-hero-stat-block">
+					<div class="catalog-hero-stat"><strong>{oportunidadesPublicas.length}</strong><span>oportunidades<br />publicadas</span></div>
+					<div class="catalog-category-summary" aria-label="Oportunidades por categoría">
+						{categoriasResumen.map(([categoria, total]) => <span><strong>{total}</strong> {categoria}</span>)}
+					</div>
+				</div>
 			</div>
 		</section>
 
 		<section class="catalog-content" aria-labelledby="resultados-titulo">
+			<nav class="catalog-quick-links" aria-label="Atajos para explorar">
+				<div class="quick-links-heading">
+					<p class="eyebrow">Explora rápido</p>
+					<span>Empieza con una ruta sencilla.</span>
+				</div>
+				<div class="quick-link-list">
+					<a class="quick-link" href={`${baseUrl}oportunidades?q=gratuito`}>
+						<span class="quick-link-icon" aria-hidden="true">$</span>
+						<span><strong>Gratis</strong><small>Sin costo de inscripción</small></span>
+						<span class="quick-link-arrow" aria-hidden="true">↗</span>
+					</a>
+					<a class="quick-link" href={`${baseUrl}oportunidades?q=en%20linea`}>
+						<span class="quick-link-icon" aria-hidden="true">⌁</span>
+						<span><strong>En línea</strong><small>Aprende desde donde estés</small></span>
+						<span class="quick-link-arrow" aria-hidden="true">↗</span>
+					</a>
+					<a class="quick-link" href={`${baseUrl}oportunidades?q=principiantes`}>
+						<span class="quick-link-icon" aria-hidden="true">✦</span>
+						<span><strong>Para principiantes</strong><small>Opciones para comenzar</small></span>
+						<span class="quick-link-arrow" aria-hidden="true">↗</span>
+					</a>
+				</div>
+			</nav>
 			<div class="catalog-toolbar">
 				<div class="catalog-toolbar-head">
 					<div class="catalog-search-wrap" role="search">
@@ -84,10 +127,17 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 						</select>
 					</label>
 					<label>
-						<span>Ubicación</span>
+						<span>Estado o cobertura</span>
 						<select id="filtro-ubicacion">
-							<option value="">Todo México</option>
-							{estados.map((estado) => <option value={estado}>{estado}</option>)}
+							<option value="">Todo México y en línea</option>
+							{ubicaciones.map((ubicacion) => <option value={ubicacion}>{ubicacion}</option>)}
+						</select>
+					</label>
+					<label>
+						<span>Tipo de institución</span>
+						<select id="filtro-institucion">
+							<option value="">Todas las instituciones</option>
+							{tiposInstitucion.map((tipoInstitucion) => <option value={tipoInstitucion}>{tipoInstitucion}</option>)}
 						</select>
 					</label>
 					<label>
@@ -116,14 +166,15 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 							<option value="">Cualquier costo</option>
 							{costos.map((costo) => <option value={costo}>{costo}</option>)}
 						</select>
-					</label>
+						</label>
 				</div>
+				<p class="catalog-filter-note">Al elegir un estado aparecen sus oportunidades locales y también las opciones nacionales que aplican en todo México.</p>
 			</div>
 			<div class="catalog-active-filters" id="filtros-activos" aria-live="polite" hidden></div>
 
 			<div class="catalog-result-bar">
 				<div>
-					<h2 id="resultados-titulo"><span id="resultado-count">{oportunidadesPublicas.length}</span> oportunidades</h2>
+					<h2 id="resultados-titulo" aria-live="polite" aria-atomic="true"><span id="resultado-count">{oportunidadesPublicas.length}</span> oportunidades</h2>
 					<p id="resultados-ayuda">Las fichas enlazan a una página con detalles, requisitos y fuente oficial.</p>
 				</div>
 				<div class="catalog-result-tools">
@@ -152,8 +203,10 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 							data-search={searchText(oportunidad)}
 							data-tipo={oportunidad.categoria}
 							data-area={oportunidad.areas.join('|')}
-							data-ubicacion={oportunidad.estados.join('|')}
+							data-ubicacion={[...new Set([...oportunidad.estados, oportunidad.cobertura])].join('|')}
+							data-institucion={oportunidad.tipoInstitucion}
 							data-nivel={oportunidad.niveles.join('|')}
+							data-organizacion={oportunidad.organizacion}
 							data-estado={oportunidad.estado}
 							data-costo={oportunidad.costo}
 							data-index={index}
@@ -174,6 +227,7 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 							<div class="opportunity-details">
 								<span><strong>Para:</strong> {oportunidad.niveles.slice(0, 2).join(' · ')}</span>
 								<span><strong>Alcance:</strong> {oportunidad.cobertura}</span>
+								<span><strong>Modalidad:</strong> {oportunidad.modalidad}</span>
 								<span><strong>Costo:</strong> {oportunidad.costo}</span>
 								{formatDate(oportunidad.fechaCierre) && <span><strong>Cierra:</strong> {formatDate(oportunidad.fechaCierre)}</span>}
 							</div>
@@ -193,6 +247,15 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 				<p id="catalog-empty-copy">Prueba con otra palabra o limpia los filtros para ver todo el catálogo.</p>
 				<button class="empty-action" id="empty-clear" type="button">Restablecer búsqueda</button>
 			</div>
+			<div class="catalog-state catalog-loading" id="catalog-loading" role="status" hidden>
+				<span class="catalog-state-icon" aria-hidden="true">◌</span>
+				<p>Cargando oportunidades…</p>
+			</div>
+			<div class="catalog-state catalog-error" id="catalog-error" role="alert" hidden>
+				<span class="catalog-state-icon" aria-hidden="true">!</span>
+				<div><strong>No pudimos actualizar los resultados.</strong><p>Intenta recargar la página para volver a explorar el catálogo.</p></div>
+				<button class="empty-action" id="catalog-retry" type="button">Reintentar</button>
+			</div>
 			<p class="catalog-disclaimer"><span aria-hidden="true">✦</span> Esta colección es inicial. Antes de participar, confirma fechas y requisitos en la fuente oficial.</p>
 		</section>
 	</main>
@@ -202,6 +265,7 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 		const typeFilter = document.querySelector<HTMLSelectElement>('#filtro-tipo');
 		const areaFilter = document.querySelector<HTMLSelectElement>('#filtro-area');
 		const locationFilter = document.querySelector<HTMLSelectElement>('#filtro-ubicacion');
+		const institutionFilter = document.querySelector<HTMLSelectElement>('#filtro-institucion');
 		const levelFilter = document.querySelector<HTMLSelectElement>('#filtro-nivel');
 		const statusFilter = document.querySelector<HTMLSelectElement>('#filtro-vigencia');
 		const costFilter = document.querySelector<HTMLSelectElement>('#filtro-costo');
@@ -216,6 +280,9 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 		const emptyCopy = document.querySelector<HTMLElement>('#catalog-empty-copy');
 		const count = document.querySelector<HTMLElement>('#resultado-count');
 		const emptyState = document.querySelector<HTMLElement>('#catalog-empty');
+		const loadingState = document.querySelector<HTMLElement>('#catalog-loading');
+		const errorState = document.querySelector<HTMLElement>('#catalog-error');
+		const retryButton = document.querySelector<HTMLButtonElement>('#catalog-retry');
 		const grid = document.querySelector<HTMLElement>('#catalog-grid');
 		const cards = [...document.querySelectorAll<HTMLElement>('[data-opportunity]')];
 		const favoriteButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-favorite-button]')];
@@ -233,15 +300,37 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 		if (typeFilter) typeFilter.value = params.get('tipo') ?? '';
 		if (areaFilter) areaFilter.value = params.get('area') ?? '';
 		if (locationFilter) locationFilter.value = params.get('ubicacion') ?? '';
+		if (institutionFilter) institutionFilter.value = params.get('institucion') ?? '';
 		if (levelFilter) levelFilter.value = params.get('nivel') ?? '';
 		if (statusFilter) statusFilter.value = params.get('vigencia') ?? '';
 		if (costFilter) costFilter.value = params.get('costo') ?? '';
 		if (favoritesOnly) favoritesOnly.checked = params.get('favoritos') === '1';
+		if (sortSelect) sortSelect.value = params.get('orden') ?? 'relevancia';
 		if (filtersPanel && (params.toString() || window.innerWidth > 700)) filtersPanel.classList.add('is-open');
 		if (filtersToggle && filtersPanel?.classList.contains('is-open')) {
 			filtersToggle.setAttribute('aria-expanded', 'true');
 			filtersToggle.innerHTML = 'Ocultar filtros <span aria-hidden="true">−</span>';
 		}
+
+		const syncUrl = () => {
+			const nextParams = new URLSearchParams();
+			[
+				['q', searchInput?.value ?? ''],
+				['tipo', typeFilter?.value ?? ''],
+				['area', areaFilter?.value ?? ''],
+				['ubicacion', locationFilter?.value ?? ''],
+				['institucion', institutionFilter?.value ?? ''],
+				['nivel', levelFilter?.value ?? ''],
+				['vigencia', statusFilter?.value ?? ''],
+				['costo', costFilter?.value ?? ''],
+			].forEach(([key, value]) => {
+				if (value) nextParams.set(key, value);
+			});
+			if (favoritesOnly?.checked) nextParams.set('favoritos', '1');
+			if (sortSelect?.value && sortSelect.value !== 'relevancia') nextParams.set('orden', sortSelect.value);
+			const queryString = nextParams.toString();
+			window.history.replaceState(window.history.state, '', `${window.location.pathname}${queryString ? `?${queryString}` : ''}${window.location.hash}`);
+		};
 
 		const saveFavorites = () => {
 			try {
@@ -284,7 +373,8 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 				{ key: 'q', label: 'Búsqueda', value: searchInput?.value ?? '' },
 				{ key: 'tipo', label: 'Tipo', value: typeFilter?.value ?? '' },
 				{ key: 'area', label: 'Área', value: areaFilter?.value ?? '' },
-				{ key: 'ubicacion', label: 'Ubicación', value: locationFilter?.value ?? '' },
+				{ key: 'ubicacion', label: 'Estado o cobertura', value: locationFilter?.value ?? '' },
+				{ key: 'institucion', label: 'Institución', value: institutionFilter?.value ?? '' },
 				{ key: 'nivel', label: 'Nivel', value: levelFilter?.value ?? '' },
 				{ key: 'vigencia', label: 'Vigencia', value: statusFilter?.value ?? '' },
 				{ key: 'costo', label: 'Costo', value: costFilter?.value ?? '' },
@@ -317,16 +407,49 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 					const bDate = b.dataset.cierre ? Date.parse(b.dataset.cierre) : Number.POSITIVE_INFINITY;
 					return aDate - bDate;
 				}
+				const scoreDifference = Number(b.dataset.score ?? 0) - Number(a.dataset.score ?? 0);
+				if (scoreDifference !== 0) return scoreDifference;
 				return Number(a.dataset.index ?? 0) - Number(b.dataset.index ?? 0);
 			});
 			sorted.forEach((card) => grid.append(card));
 		};
 
+		const relevanceScore = (card: HTMLElement, query: string) => {
+			if (!query) return 0;
+			const title = normalize(card.dataset.titulo ?? '');
+			const type = normalize(card.dataset.tipo ?? '');
+			const areas = normalize((card.dataset.area ?? '').replaceAll('|', ' '));
+			const levels = normalize((card.dataset.nivel ?? '').replaceAll('|', ' '));
+			const organization = normalize(card.dataset.organizacion ?? '');
+			const searchable = normalize(card.dataset.search ?? '');
+			return query.split(/\s+/).filter(Boolean).reduce((total, token) => {
+				let score = 0;
+				if (title === token) score += 120;
+				else if (title.startsWith(token)) score += 85;
+				else if (title.includes(token)) score += 65;
+				if (type === token) score += 42;
+				else if (type.includes(token)) score += 30;
+				if (areas.includes(token)) score += 30;
+				if (levels.includes(token)) score += 22;
+				if (organization.includes(token)) score += 18;
+				if (searchable.includes(token)) score += 5;
+				return total + score;
+			}, 0);
+		};
+
+		const showCatalogError = () => {
+			if (errorState) errorState.hidden = false;
+			if (emptyState) emptyState.hidden = true;
+			if (grid) grid.setAttribute('aria-busy', 'false');
+		};
+
 		const updateResults = () => {
+			try {
 			const query = normalize(searchInput?.value ?? '');
 			const selectedType = typeFilter?.value ?? '';
 			const selectedArea = areaFilter?.value ?? '';
 			const selectedLocation = locationFilter?.value ?? '';
+			const selectedInstitution = institutionFilter?.value ?? '';
 			const selectedLevel = levelFilter?.value ?? '';
 			const selectedStatus = statusFilter?.value ?? '';
 			const selectedCost = costFilter?.value ?? '';
@@ -334,15 +457,24 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 			let visible = 0;
 
 			cards.forEach((card) => {
-				const matchesQuery = !query || normalize(card.dataset.search ?? '').includes(query);
+				const score = relevanceScore(card, query);
+				card.dataset.score = String(score);
+				const normalizedSearch = normalize(card.dataset.search ?? '');
+				const queryTokens = query.split(/\s+/).filter(Boolean);
+				const matchesQuery = !query || normalizedSearch.includes(query) || queryTokens.every((token) => normalizedSearch.includes(token));
 				const matchesType = !selectedType || card.dataset.tipo === selectedType;
 				const matchesArea = !selectedArea || (card.dataset.area ?? '').split('|').includes(selectedArea);
-				const matchesLocation = !selectedLocation || (card.dataset.ubicacion ?? '').split('|').includes(selectedLocation);
+				const cardLocations = (card.dataset.ubicacion ?? '').split('|');
+				const isMexicanState = [
+					'Aguascalientes', 'Baja California', 'Baja California Sur', 'Campeche', 'Chiapas', 'Chihuahua', 'Ciudad de México', 'Coahuila', 'Colima', 'Durango', 'Estado de México', 'Guanajuato', 'Guerrero', 'Hidalgo', 'Jalisco', 'Michoacán', 'Morelos', 'Nayarit', 'Nuevo León', 'Oaxaca', 'Puebla', 'Querétaro', 'Quintana Roo', 'San Luis Potosí', 'Sinaloa', 'Sonora', 'Tabasco', 'Tamaulipas', 'Tlaxcala', 'Veracruz', 'Yucatán', 'Zacatecas',
+				].includes(selectedLocation);
+				const matchesLocation = !selectedLocation || cardLocations.includes(selectedLocation) || (isMexicanState && cardLocations.includes('Nacional'));
+				const matchesInstitution = !selectedInstitution || card.dataset.institucion === selectedInstitution;
 				const matchesLevel = !selectedLevel || (card.dataset.nivel ?? '').split('|').includes(selectedLevel);
 				const matchesStatus = !selectedStatus || card.dataset.estado === selectedStatus;
 				const matchesCost = !selectedCost || card.dataset.costo === selectedCost;
 				const matchesFavorite = !selectedFavorites || favorites.has(card.dataset.slug ?? '');
-				const matches = matchesQuery && matchesType && matchesArea && matchesLocation && matchesLevel && matchesStatus && matchesCost && matchesFavorite;
+				const matches = matchesQuery && matchesType && matchesArea && matchesLocation && matchesInstitution && matchesLevel && matchesStatus && matchesCost && matchesFavorite;
 
 				card.hidden = !matches;
 				if (matches) visible += 1;
@@ -352,8 +484,14 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 			if (emptyState) emptyState.hidden = visible !== 0;
 			if (emptyTitle) emptyTitle.textContent = selectedFavorites ? 'Todavía no tienes guardadas.' : 'No encontramos coincidencias.';
 			if (emptyCopy) emptyCopy.textContent = selectedFavorites ? 'Guarda una oportunidad con el corazón para verla aquí cuando vuelvas.' : 'Prueba con otra palabra o limpia los filtros para ver todo el catálogo.';
-			if (clearButton) clearButton.hidden = !query && !selectedType && !selectedArea && !selectedLocation && !selectedLevel && !selectedStatus && !selectedCost && !selectedFavorites;
+			if (clearButton) clearButton.hidden = !query && !selectedType && !selectedArea && !selectedLocation && !selectedInstitution && !selectedLevel && !selectedStatus && !selectedCost && !selectedFavorites;
 			renderActiveFilters();
+			syncUrl();
+			sortCards();
+				if (errorState) errorState.hidden = true;
+			} catch {
+				showCatalogError();
+			}
 		};
 
 		const resetFilters = () => {
@@ -361,10 +499,12 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 			if (typeFilter) typeFilter.value = '';
 			if (areaFilter) areaFilter.value = '';
 			if (locationFilter) locationFilter.value = '';
+			if (institutionFilter) institutionFilter.value = '';
 			if (levelFilter) levelFilter.value = '';
 			if (statusFilter) statusFilter.value = '';
 			if (costFilter) costFilter.value = '';
 			if (favoritesOnly) favoritesOnly.checked = false;
+			if (sortSelect) sortSelect.value = 'relevancia';
 			updateResults();
 			searchInput?.focus();
 		};
@@ -373,11 +513,15 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 		typeFilter?.addEventListener('change', updateResults);
 		areaFilter?.addEventListener('change', updateResults);
 		locationFilter?.addEventListener('change', updateResults);
+		institutionFilter?.addEventListener('change', updateResults);
 		levelFilter?.addEventListener('change', updateResults);
 		statusFilter?.addEventListener('change', updateResults);
 		costFilter?.addEventListener('change', updateResults);
 		favoritesOnly?.addEventListener('change', updateResults);
-		sortSelect?.addEventListener('change', sortCards);
+		sortSelect?.addEventListener('change', () => {
+			sortCards();
+			syncUrl();
+		});
 		clearButton?.addEventListener('click', resetFilters);
 		emptyClearButton?.addEventListener('click', resetFilters);
 		filtersToggle?.addEventListener('click', () => {
@@ -394,14 +538,20 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 			if (key === 'tipo' && typeFilter) typeFilter.value = '';
 			if (key === 'area' && areaFilter) areaFilter.value = '';
 			if (key === 'ubicacion' && locationFilter) locationFilter.value = '';
+			if (key === 'institucion' && institutionFilter) institutionFilter.value = '';
 			if (key === 'nivel' && levelFilter) levelFilter.value = '';
 			if (key === 'vigencia' && statusFilter) statusFilter.value = '';
 			if (key === 'costo' && costFilter) costFilter.value = '';
 			if (key === 'favoritos' && favoritesOnly) favoritesOnly.checked = false;
 			updateResults();
 		});
-		sortCards();
-		updateResults();
+		retryButton?.addEventListener('click', () => window.location.reload());
+		grid?.setAttribute('aria-busy', 'true');
+		loadingState?.removeAttribute('hidden');
+		window.requestAnimationFrame(() => {
+			sortCards();
+			updateResults();
+			loadingState?.setAttribute('hidden', '');
+		});
 	</script>
 </BaseLayout>
-

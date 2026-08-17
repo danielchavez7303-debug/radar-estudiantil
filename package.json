@@ -7,7 +7,10 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "validate:data": "node scripts/validate-oportunidades.mjs",
+    "validate:links": "node scripts/check-links.mjs",
+    "validate:all": "npm run validate:data && npm run validate:links",
+    "build": "npm run validate:all && astro build",
     "preview": "astro preview",
     "astro": "astro"
   },
@@ -15,4 +18,3 @@
     "astro": "^7.2.2"
   }
 }
-
