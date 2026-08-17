@@ -32,7 +32,7 @@ const fecha = (valor: string | null) =>
 	title={`${oportunidad.titulo} | Radar Estudiantil`}
 	description={oportunidad.descripcion}
 >
-	<main class="detail-page" id="top">
+		<main class="detail-page" id="top" data-opportunity-slug={oportunidad.slug}>
 		<div class="detail-wrap">
 			<nav class="breadcrumbs" aria-label="Ruta de navegación">
 				<a href={baseUrl}>Inicio</a><span aria-hidden="true">/</span><a href={`${baseUrl}oportunidades`}>Oportunidades</a><span aria-hidden="true">/</span><span>{oportunidad.titulo}</span>
@@ -48,6 +48,11 @@ const fecha = (valor: string | null) =>
 					<p>{oportunidad.descripcion}</p>
 					<div class="detail-areas" aria-label="Áreas relacionadas">
 						{oportunidad.areas.map((area) => <span>{area}</span>)}
+					</div>
+					<div class="detail-actions">
+						<button class="detail-action detail-save" data-detail-favorite type="button" aria-pressed="false"><span class="detail-action-icon" aria-hidden="true">♡</span><span>Guardar oportunidad</span></button>
+						<button class="detail-action" data-share-opportunity type="button"><span aria-hidden="true">↗</span><span>Compartir</span></button>
+						<span class="detail-action-feedback" data-action-feedback role="status" hidden></span>
 					</div>
 				</div>
 				<div class="detail-hero-index" aria-hidden="true">Ficha<br /><strong>01</strong></div>
@@ -156,6 +161,67 @@ const fecha = (valor: string | null) =>
 	</main>
 
 	<script>
+		const detailPage = document.querySelector<HTMLElement>('[data-opportunity-slug]');
+		const detailSlug = detailPage?.dataset.opportunitySlug ?? '';
+		const detailFavoriteButton = document.querySelector<HTMLButtonElement>('[data-detail-favorite]');
+		const shareButton = document.querySelector<HTMLButtonElement>('[data-share-opportunity]');
+		const actionFeedback = document.querySelector<HTMLElement>('[data-action-feedback]');
+		const detailFavoriteStorageKey = 'radar-estudiantil:favoritos';
+		let detailFavorites = new Set<string>();
+		try {
+			detailFavorites = new Set(JSON.parse(window.localStorage.getItem(detailFavoriteStorageKey) ?? '[]'));
+		} catch {
+			detailFavorites = new Set();
+		}
+
+		const saveDetailFavorites = () => {
+			try {
+				window.localStorage.setItem(detailFavoriteStorageKey, JSON.stringify([...detailFavorites]));
+			} catch {
+				// La ficha sigue funcionando aunque el almacenamiento local esté bloqueado.
+			}
+		};
+
+		const updateDetailFavorite = () => {
+			if (!detailFavoriteButton) return;
+			const isFavorite = detailFavorites.has(detailSlug);
+			detailFavoriteButton.setAttribute('aria-pressed', String(isFavorite));
+			detailFavoriteButton.setAttribute('aria-label', isFavorite ? 'Quitar oportunidad de guardadas' : 'Guardar oportunidad');
+			const icon = detailFavoriteButton.querySelector<HTMLElement>('.detail-action-icon');
+			const label = detailFavoriteButton.querySelector<HTMLElement>('span:last-child');
+			if (icon) icon.textContent = isFavorite ? '♥' : '♡';
+			if (label) label.textContent = isFavorite ? 'Guardada en este dispositivo' : 'Guardar oportunidad';
+		};
+
+		updateDetailFavorite();
+		detailFavoriteButton?.addEventListener('click', () => {
+			if (!detailSlug) return;
+			if (detailFavorites.has(detailSlug)) detailFavorites.delete(detailSlug);
+			else detailFavorites.add(detailSlug);
+			saveDetailFavorites();
+			updateDetailFavorite();
+		});
+
+		shareButton?.addEventListener('click', async () => {
+			const shareData = { title: document.title, text: 'Mira esta oportunidad en Radar Estudiantil', url: window.location.href };
+			try {
+				if (navigator.share) await navigator.share(shareData);
+				else {
+					await navigator.clipboard.writeText(window.location.href);
+					if (actionFeedback) {
+						actionFeedback.hidden = false;
+						actionFeedback.textContent = 'Enlace copiado';
+						window.setTimeout(() => { actionFeedback.hidden = true; }, 2200);
+					}
+				}
+			} catch {
+				if (actionFeedback) {
+					actionFeedback.hidden = false;
+					actionFeedback.textContent = 'Puedes copiar el enlace desde la barra del navegador.';
+				}
+			}
+		});
+
 		const eligibilityCard = document.querySelector<HTMLElement>('[data-eligibility]');
 		const eligibilityButton = document.querySelector<HTMLButtonElement>('#comprobar-compatibilidad');
 		const eligibilityResult = document.querySelector<HTMLElement>('#resultado-compatibilidad');

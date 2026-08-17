@@ -56,15 +56,19 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 
 		<section class="catalog-content" aria-labelledby="resultados-titulo">
 			<div class="catalog-toolbar">
-				<div class="catalog-search-wrap" role="search">
-					<label for="busqueda">Buscar oportunidades</label>
-					<div class="catalog-search">
-						<span aria-hidden="true">⌕</span>
-						<input id="busqueda" type="search" placeholder="Ej. matemáticas, becas, cursos..." autocomplete="off" />
-						<button id="limpiar" type="button" hidden>Limpiar</button>
+				<div class="catalog-toolbar-head">
+					<div class="catalog-search-wrap" role="search">
+						<label for="busqueda">Buscar oportunidades</label>
+						<div class="catalog-search">
+							<span aria-hidden="true">⌕</span>
+							<input id="busqueda" type="search" placeholder="Ej. matemáticas, becas, cursos..." autocomplete="off" />
+							<button id="limpiar" type="button" hidden>Limpiar</button>
+						</div>
+						<p class="catalog-search-hint">Busca por tema, institución, área o nivel.</p>
 					</div>
+					<button class="filters-toggle" id="toggle-filtros" type="button" aria-expanded="false" aria-controls="catalog-filtros">Mostrar filtros <span aria-hidden="true">＋</span></button>
 				</div>
-				<div class="catalog-filters" aria-label="Filtros">
+				<div class="catalog-filters" id="catalog-filtros" aria-label="Filtros">
 					<label>
 						<span>Tipo</span>
 						<select id="filtro-tipo">
@@ -115,21 +119,28 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 					</label>
 				</div>
 			</div>
+			<div class="catalog-active-filters" id="filtros-activos" aria-live="polite" hidden></div>
 
 			<div class="catalog-result-bar">
 				<div>
 					<h2 id="resultados-titulo"><span id="resultado-count">{oportunidadesPublicas.length}</span> oportunidades</h2>
-					<p>Las fichas enlazan a una página con detalles, requisitos y fuente oficial.</p>
+					<p id="resultados-ayuda">Las fichas enlazan a una página con detalles, requisitos y fuente oficial.</p>
 				</div>
-				<label class="catalog-sort">
-					<span>Ordenar por</span>
-					<select id="ordenar">
-						<option value="relevancia">Relevancia</option>
-						<option value="az">A–Z</option>
-						<option value="verificadas">Recién verificadas</option>
-						<option value="cierre">Cierran primero</option>
-					</select>
-				</label>
+				<div class="catalog-result-tools">
+					<label class="favorites-toggle">
+						<input id="solo-favoritos" type="checkbox" />
+						<span>Solo guardadas</span>
+					</label>
+					<label class="catalog-sort">
+						<span>Ordenar por</span>
+						<select id="ordenar">
+							<option value="relevancia">Relevancia</option>
+							<option value="az">A–Z</option>
+							<option value="verificadas">Recién verificadas</option>
+							<option value="cierre">Cierran primero</option>
+						</select>
+					</label>
+				</div>
 			</div>
 
 			<div class="catalog-grid" id="catalog-grid">
@@ -147,9 +158,13 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 							data-costo={oportunidad.costo}
 							data-index={index}
 							data-titulo={oportunidad.titulo}
+							data-slug={oportunidad.slug}
 							data-cierre={oportunidad.fechaCierre ?? ''}
 							data-verificacion={oportunidad.ultimaVerificacion ?? ''}
 						>
+							<button class="favorite-button" data-favorite-button type="button" aria-pressed="false" aria-label={`Guardar ${oportunidad.titulo}`}>
+								<span class="favorite-icon" aria-hidden="true">♡</span><span class="favorite-button-label">Guardar</span>
+							</button>
 							<div class="opportunity-card-topline">
 								<span class="opportunity-type">{oportunidad.categoria}</span>
 								<span class="opportunity-status">{estadoLabel[oportunidad.estado] ?? oportunidad.estado}</span>
@@ -174,8 +189,9 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 
 			<div class="catalog-empty" id="catalog-empty" hidden>
 				<span aria-hidden="true">⌕</span>
-				<h2>No encontramos coincidencias.</h2>
-				<p>Prueba con otra palabra o limpia los filtros para ver todo el catálogo.</p>
+				<h2 id="catalog-empty-title">No encontramos coincidencias.</h2>
+				<p id="catalog-empty-copy">Prueba con otra palabra o limpia los filtros para ver todo el catálogo.</p>
+				<button class="empty-action" id="empty-clear" type="button">Restablecer búsqueda</button>
 			</div>
 			<p class="catalog-disclaimer"><span aria-hidden="true">✦</span> Esta colección es inicial. Antes de participar, confirma fechas y requisitos en la fuente oficial.</p>
 		</section>
@@ -191,10 +207,25 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 		const costFilter = document.querySelector<HTMLSelectElement>('#filtro-costo');
 		const sortSelect = document.querySelector<HTMLSelectElement>('#ordenar');
 		const clearButton = document.querySelector<HTMLButtonElement>('#limpiar');
+		const emptyClearButton = document.querySelector<HTMLButtonElement>('#empty-clear');
+		const filtersToggle = document.querySelector<HTMLButtonElement>('#toggle-filtros');
+		const filtersPanel = document.querySelector<HTMLElement>('#catalog-filtros');
+		const activeFilters = document.querySelector<HTMLElement>('#filtros-activos');
+		const favoritesOnly = document.querySelector<HTMLInputElement>('#solo-favoritos');
+		const emptyTitle = document.querySelector<HTMLElement>('#catalog-empty-title');
+		const emptyCopy = document.querySelector<HTMLElement>('#catalog-empty-copy');
 		const count = document.querySelector<HTMLElement>('#resultado-count');
 		const emptyState = document.querySelector<HTMLElement>('#catalog-empty');
 		const grid = document.querySelector<HTMLElement>('#catalog-grid');
 		const cards = [...document.querySelectorAll<HTMLElement>('[data-opportunity]')];
+		const favoriteButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-favorite-button]')];
+		const favoriteStorageKey = 'radar-estudiantil:favoritos';
+		let favorites = new Set<string>();
+		try {
+			favorites = new Set(JSON.parse(window.localStorage.getItem(favoriteStorageKey) ?? '[]'));
+		} catch {
+			favorites = new Set();
+		}
 
 		const normalize = (value: string) => value.toLocaleLowerCase('es-MX').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 		const params = new URLSearchParams(window.location.search);
@@ -203,6 +234,78 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 		if (areaFilter) areaFilter.value = params.get('area') ?? '';
 		if (locationFilter) locationFilter.value = params.get('ubicacion') ?? '';
 		if (levelFilter) levelFilter.value = params.get('nivel') ?? '';
+		if (statusFilter) statusFilter.value = params.get('vigencia') ?? '';
+		if (costFilter) costFilter.value = params.get('costo') ?? '';
+		if (favoritesOnly) favoritesOnly.checked = params.get('favoritos') === '1';
+		if (filtersPanel && (params.toString() || window.innerWidth > 700)) filtersPanel.classList.add('is-open');
+		if (filtersToggle && filtersPanel?.classList.contains('is-open')) {
+			filtersToggle.setAttribute('aria-expanded', 'true');
+			filtersToggle.innerHTML = 'Ocultar filtros <span aria-hidden="true">−</span>';
+		}
+
+		const saveFavorites = () => {
+			try {
+				window.localStorage.setItem(favoriteStorageKey, JSON.stringify([...favorites]));
+			} catch {
+				// El catálogo sigue funcionando aunque el navegador bloquee el almacenamiento local.
+			}
+		};
+
+		const updateFavoriteButton = (button: HTMLButtonElement) => {
+			const card = button.closest<HTMLElement>('[data-opportunity]');
+			const slug = card?.dataset.slug ?? '';
+			const isFavorite = favorites.has(slug);
+			button.setAttribute('aria-pressed', String(isFavorite));
+			button.setAttribute('aria-label', `${isFavorite ? 'Quitar de' : 'Guardar en'} tus oportunidades guardadas`);
+			const icon = button.querySelector<HTMLElement>('.favorite-icon');
+			const label = button.querySelector<HTMLElement>('.favorite-button-label');
+			if (icon) icon.textContent = isFavorite ? '♥' : '♡';
+			if (label) label.textContent = isFavorite ? 'Guardada' : 'Guardar';
+		};
+
+		favoriteButtons.forEach((button) => {
+			updateFavoriteButton(button);
+			button.addEventListener('click', () => {
+				const card = button.closest<HTMLElement>('[data-opportunity]');
+				const slug = card?.dataset.slug ?? '';
+				if (!slug) return;
+				if (favorites.has(slug)) favorites.delete(slug);
+				else favorites.add(slug);
+				saveFavorites();
+				updateFavoriteButton(button);
+				updateResults();
+			});
+		});
+
+		const renderActiveFilters = () => {
+			if (!activeFilters) return;
+			activeFilters.replaceChildren();
+			const selected = [
+				{ key: 'q', label: 'Búsqueda', value: searchInput?.value ?? '' },
+				{ key: 'tipo', label: 'Tipo', value: typeFilter?.value ?? '' },
+				{ key: 'area', label: 'Área', value: areaFilter?.value ?? '' },
+				{ key: 'ubicacion', label: 'Ubicación', value: locationFilter?.value ?? '' },
+				{ key: 'nivel', label: 'Nivel', value: levelFilter?.value ?? '' },
+				{ key: 'vigencia', label: 'Vigencia', value: statusFilter?.value ?? '' },
+				{ key: 'costo', label: 'Costo', value: costFilter?.value ?? '' },
+				{ key: 'favoritos', label: 'Vista', value: favoritesOnly?.checked ? 'Solo guardadas' : '' },
+			].filter((item) => item.value);
+			selected.forEach((item) => {
+				const chip = document.createElement('button');
+				chip.type = 'button';
+				chip.className = 'filter-chip';
+				chip.dataset.clearFilter = item.key;
+				chip.setAttribute('aria-label', `Quitar filtro ${item.label}`);
+				const text = document.createElement('span');
+				text.textContent = `${item.label}: ${item.value}`;
+				const close = document.createElement('span');
+				close.setAttribute('aria-hidden', 'true');
+				close.textContent = '×';
+				chip.append(text, close);
+				activeFilters.append(chip);
+			});
+			activeFilters.hidden = selected.length === 0;
+		};
 
 		const sortCards = () => {
 			if (!grid || !sortSelect) return;
@@ -227,6 +330,7 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 			const selectedLevel = levelFilter?.value ?? '';
 			const selectedStatus = statusFilter?.value ?? '';
 			const selectedCost = costFilter?.value ?? '';
+			const selectedFavorites = favoritesOnly?.checked ?? false;
 			let visible = 0;
 
 			cards.forEach((card) => {
@@ -237,7 +341,8 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 				const matchesLevel = !selectedLevel || (card.dataset.nivel ?? '').split('|').includes(selectedLevel);
 				const matchesStatus = !selectedStatus || card.dataset.estado === selectedStatus;
 				const matchesCost = !selectedCost || card.dataset.costo === selectedCost;
-				const matches = matchesQuery && matchesType && matchesArea && matchesLocation && matchesLevel && matchesStatus && matchesCost;
+				const matchesFavorite = !selectedFavorites || favorites.has(card.dataset.slug ?? '');
+				const matches = matchesQuery && matchesType && matchesArea && matchesLocation && matchesLevel && matchesStatus && matchesCost && matchesFavorite;
 
 				card.hidden = !matches;
 				if (matches) visible += 1;
@@ -245,7 +350,23 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 
 			if (count) count.textContent = String(visible);
 			if (emptyState) emptyState.hidden = visible !== 0;
-			if (clearButton) clearButton.hidden = !query && !selectedType && !selectedArea && !selectedLocation && !selectedLevel && !selectedStatus && !selectedCost;
+			if (emptyTitle) emptyTitle.textContent = selectedFavorites ? 'Todavía no tienes guardadas.' : 'No encontramos coincidencias.';
+			if (emptyCopy) emptyCopy.textContent = selectedFavorites ? 'Guarda una oportunidad con el corazón para verla aquí cuando vuelvas.' : 'Prueba con otra palabra o limpia los filtros para ver todo el catálogo.';
+			if (clearButton) clearButton.hidden = !query && !selectedType && !selectedArea && !selectedLocation && !selectedLevel && !selectedStatus && !selectedCost && !selectedFavorites;
+			renderActiveFilters();
+		};
+
+		const resetFilters = () => {
+			if (searchInput) searchInput.value = '';
+			if (typeFilter) typeFilter.value = '';
+			if (areaFilter) areaFilter.value = '';
+			if (locationFilter) locationFilter.value = '';
+			if (levelFilter) levelFilter.value = '';
+			if (statusFilter) statusFilter.value = '';
+			if (costFilter) costFilter.value = '';
+			if (favoritesOnly) favoritesOnly.checked = false;
+			updateResults();
+			searchInput?.focus();
 		};
 
 		searchInput?.addEventListener('input', updateResults);
@@ -255,17 +376,29 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 		levelFilter?.addEventListener('change', updateResults);
 		statusFilter?.addEventListener('change', updateResults);
 		costFilter?.addEventListener('change', updateResults);
+		favoritesOnly?.addEventListener('change', updateResults);
 		sortSelect?.addEventListener('change', sortCards);
-		clearButton?.addEventListener('click', () => {
-			if (searchInput) searchInput.value = '';
-			if (typeFilter) typeFilter.value = '';
-			if (areaFilter) areaFilter.value = '';
-			if (locationFilter) locationFilter.value = '';
-			if (levelFilter) levelFilter.value = '';
-			if (statusFilter) statusFilter.value = '';
-			if (costFilter) costFilter.value = '';
+		clearButton?.addEventListener('click', resetFilters);
+		emptyClearButton?.addEventListener('click', resetFilters);
+		filtersToggle?.addEventListener('click', () => {
+			if (!filtersPanel) return;
+			const isOpen = filtersPanel.classList.toggle('is-open');
+			filtersToggle.setAttribute('aria-expanded', String(isOpen));
+			filtersToggle.innerHTML = `${isOpen ? 'Ocultar' : 'Mostrar'} filtros <span aria-hidden="true">${isOpen ? '−' : '＋'}</span>`;
+		});
+		activeFilters?.addEventListener('click', (event) => {
+			const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-clear-filter]');
+			const key = button?.dataset.clearFilter;
+			if (!key) return;
+			if (key === 'q' && searchInput) searchInput.value = '';
+			if (key === 'tipo' && typeFilter) typeFilter.value = '';
+			if (key === 'area' && areaFilter) areaFilter.value = '';
+			if (key === 'ubicacion' && locationFilter) locationFilter.value = '';
+			if (key === 'nivel' && levelFilter) levelFilter.value = '';
+			if (key === 'vigencia' && statusFilter) statusFilter.value = '';
+			if (key === 'costo' && costFilter) costFilter.value = '';
+			if (key === 'favoritos' && favoritesOnly) favoritesOnly.checked = false;
 			updateResults();
-			searchInput?.focus();
 		});
 		sortCards();
 		updateResults();
