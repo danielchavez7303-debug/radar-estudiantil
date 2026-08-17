@@ -1,0 +1,274 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import oportunidades from '../../data/oportunidades.json';
+import '../../styles/catalog.css';
+
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
+const oportunidadesPublicas = oportunidades.filter((oportunidad) => oportunidad.publicar && oportunidad.estadoVerificacion === 'verificada');
+const estadoLabel: Record<string, string> = {
+	activa: 'Activa',
+	proxima: 'Próxima',
+	permanente: 'Permanente',
+	enProceso: 'En proceso',
+	resultados: 'Resultados publicados',
+	cerrada: 'Cerrada',
+	finalizada: 'Finalizada',
+	porVerificar: 'Por verificar',
+};
+
+const tipos = [...new Set(oportunidadesPublicas.map((oportunidad) => oportunidad.categoria))];
+const areas = [...new Set(oportunidadesPublicas.flatMap((oportunidad) => oportunidad.areas))];
+const estados = [...new Set(oportunidadesPublicas.flatMap((oportunidad) => oportunidad.estados))];
+const niveles = [...new Set(oportunidadesPublicas.flatMap((oportunidad) => oportunidad.niveles))];
+const costos = [...new Set(oportunidadesPublicas.map((oportunidad) => oportunidad.costo))];
+const formatDate = (valor: string | null) =>
+	valor ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium' }).format(new Date(`${valor}T12:00:00`)) : null;
+const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
+	[
+		oportunidad.titulo,
+		oportunidad.categoria,
+		oportunidad.descripcion,
+		oportunidad.organizacion,
+		...oportunidad.areas,
+		...oportunidad.niveles,
+		...oportunidad.estados,
+		...oportunidad.beneficios,
+	]
+		.join(' ')
+		.toLocaleLowerCase('es-MX');
+---
+
+<BaseLayout
+	title="Explorar oportunidades | Radar Estudiantil"
+	description="Busca y filtra becas, competencias, cursos y recursos educativos para estudiantes en México."
+>
+	<main class="catalog-page" id="top">
+		<section class="catalog-hero" aria-labelledby="catalogo-titulo">
+			<div class="catalog-hero-inner">
+				<div>
+					<p class="eyebrow eyebrow-light"><span class="eyebrow-dot" aria-hidden="true"></span> Catálogo inicial</p>
+					<h1 id="catalogo-titulo">Encuentra algo que te impulse.</h1>
+					<p>Busca por palabra, tipo o área. El catálogo crecerá con oportunidades revisadas y organizadas.</p>
+				</div>
+				<div class="catalog-hero-stat"><strong>{oportunidadesPublicas.length}</strong><span>registros iniciales<br />por explorar</span></div>
+			</div>
+		</section>
+
+		<section class="catalog-content" aria-labelledby="resultados-titulo">
+			<div class="catalog-toolbar">
+				<div class="catalog-search-wrap" role="search">
+					<label for="busqueda">Buscar oportunidades</label>
+					<div class="catalog-search">
+						<span aria-hidden="true">⌕</span>
+						<input id="busqueda" type="search" placeholder="Ej. matemáticas, becas, cursos..." autocomplete="off" />
+						<button id="limpiar" type="button" hidden>Limpiar</button>
+					</div>
+				</div>
+				<div class="catalog-filters" aria-label="Filtros">
+					<label>
+						<span>Tipo</span>
+						<select id="filtro-tipo">
+							<option value="">Todos los tipos</option>
+							{tipos.map((tipo) => <option value={tipo}>{tipo}</option>)}
+						</select>
+					</label>
+					<label>
+						<span>Área</span>
+						<select id="filtro-area">
+							<option value="">Todas las áreas</option>
+							{areas.map((area) => <option value={area}>{area}</option>)}
+						</select>
+					</label>
+					<label>
+						<span>Ubicación</span>
+						<select id="filtro-ubicacion">
+							<option value="">Todo México</option>
+							{estados.map((estado) => <option value={estado}>{estado}</option>)}
+						</select>
+					</label>
+					<label>
+						<span>Nivel</span>
+						<select id="filtro-nivel">
+							<option value="">Todos los niveles</option>
+							{niveles.map((nivel) => <option value={nivel}>{nivel}</option>)}
+						</select>
+					</label>
+					<label>
+						<span>Vigencia</span>
+						<select id="filtro-vigencia">
+							<option value="">Cualquier vigencia</option>
+							<option value="activa">Activa</option>
+							<option value="proxima">Próxima</option>
+							<option value="permanente">Permanente</option>
+							<option value="enProceso">En proceso</option>
+							<option value="resultados">Resultados publicados</option>
+							<option value="cerrada">Cerrada</option>
+							<option value="finalizada">Finalizada</option>
+						</select>
+					</label>
+					<label>
+						<span>Costo</span>
+						<select id="filtro-costo">
+							<option value="">Cualquier costo</option>
+							{costos.map((costo) => <option value={costo}>{costo}</option>)}
+						</select>
+					</label>
+				</div>
+			</div>
+
+			<div class="catalog-result-bar">
+				<div>
+					<h2 id="resultados-titulo"><span id="resultado-count">{oportunidadesPublicas.length}</span> oportunidades</h2>
+					<p>Las fichas enlazan a una página con detalles, requisitos y fuente oficial.</p>
+				</div>
+				<label class="catalog-sort">
+					<span>Ordenar por</span>
+					<select id="ordenar">
+						<option value="relevancia">Relevancia</option>
+						<option value="az">A–Z</option>
+						<option value="verificadas">Recién verificadas</option>
+						<option value="cierre">Cierran primero</option>
+					</select>
+				</label>
+			</div>
+
+			<div class="catalog-grid" id="catalog-grid">
+				{
+					oportunidadesPublicas.map((oportunidad, index) => (
+						<article
+							class={`opportunity-card opportunity-${oportunidad.id}`}
+							data-opportunity
+							data-search={searchText(oportunidad)}
+							data-tipo={oportunidad.categoria}
+							data-area={oportunidad.areas.join('|')}
+							data-ubicacion={oportunidad.estados.join('|')}
+							data-nivel={oportunidad.niveles.join('|')}
+							data-estado={oportunidad.estado}
+							data-costo={oportunidad.costo}
+							data-index={index}
+							data-titulo={oportunidad.titulo}
+							data-cierre={oportunidad.fechaCierre ?? ''}
+							data-verificacion={oportunidad.ultimaVerificacion ?? ''}
+						>
+							<div class="opportunity-card-topline">
+								<span class="opportunity-type">{oportunidad.categoria}</span>
+								<span class="opportunity-status">{estadoLabel[oportunidad.estado] ?? oportunidad.estado}</span>
+							</div>
+							<h3><a href={`${baseUrl}oportunidades/${oportunidad.slug}`}>{oportunidad.titulo}</a></h3>
+							<p>{oportunidad.descripcion}</p>
+							<div class="opportunity-details">
+								<span><strong>Para:</strong> {oportunidad.niveles.slice(0, 2).join(' · ')}</span>
+								<span><strong>Alcance:</strong> {oportunidad.cobertura}</span>
+								<span><strong>Costo:</strong> {oportunidad.costo}</span>
+								{formatDate(oportunidad.fechaCierre) && <span><strong>Cierra:</strong> {formatDate(oportunidad.fechaCierre)}</span>}
+							</div>
+							<div class="opportunity-verification"><span aria-hidden="true">✓</span> Verificada {formatDate(oportunidad.ultimaVerificacion)}</div>
+							<div class="opportunity-card-footer">
+								<span>{oportunidad.organizacion}</span>
+								<a href={`${baseUrl}oportunidades/${oportunidad.slug}`} aria-label={`Ver detalles de ${oportunidad.titulo}`}>Ver ficha <span aria-hidden="true">↗</span></a>
+							</div>
+						</article>
+					))
+				}
+			</div>
+
+			<div class="catalog-empty" id="catalog-empty" hidden>
+				<span aria-hidden="true">⌕</span>
+				<h2>No encontramos coincidencias.</h2>
+				<p>Prueba con otra palabra o limpia los filtros para ver todo el catálogo.</p>
+			</div>
+			<p class="catalog-disclaimer"><span aria-hidden="true">✦</span> Esta colección es inicial. Antes de participar, confirma fechas y requisitos en la fuente oficial.</p>
+		</section>
+	</main>
+
+	<script>
+		const searchInput = document.querySelector<HTMLInputElement>('#busqueda');
+		const typeFilter = document.querySelector<HTMLSelectElement>('#filtro-tipo');
+		const areaFilter = document.querySelector<HTMLSelectElement>('#filtro-area');
+		const locationFilter = document.querySelector<HTMLSelectElement>('#filtro-ubicacion');
+		const levelFilter = document.querySelector<HTMLSelectElement>('#filtro-nivel');
+		const statusFilter = document.querySelector<HTMLSelectElement>('#filtro-vigencia');
+		const costFilter = document.querySelector<HTMLSelectElement>('#filtro-costo');
+		const sortSelect = document.querySelector<HTMLSelectElement>('#ordenar');
+		const clearButton = document.querySelector<HTMLButtonElement>('#limpiar');
+		const count = document.querySelector<HTMLElement>('#resultado-count');
+		const emptyState = document.querySelector<HTMLElement>('#catalog-empty');
+		const grid = document.querySelector<HTMLElement>('#catalog-grid');
+		const cards = [...document.querySelectorAll<HTMLElement>('[data-opportunity]')];
+
+		const normalize = (value: string) => value.toLocaleLowerCase('es-MX').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+		const params = new URLSearchParams(window.location.search);
+		if (searchInput) searchInput.value = params.get('q') ?? '';
+		if (typeFilter) typeFilter.value = params.get('tipo') ?? '';
+		if (areaFilter) areaFilter.value = params.get('area') ?? '';
+		if (locationFilter) locationFilter.value = params.get('ubicacion') ?? '';
+		if (levelFilter) levelFilter.value = params.get('nivel') ?? '';
+
+		const sortCards = () => {
+			if (!grid || !sortSelect) return;
+			const sorted = [...cards].sort((a, b) => {
+				if (sortSelect.value === 'az') return (a.dataset.titulo ?? '').localeCompare(b.dataset.titulo ?? '', 'es');
+				if (sortSelect.value === 'verificadas') return (b.dataset.verificacion ?? '').localeCompare(a.dataset.verificacion ?? '');
+				if (sortSelect.value === 'cierre') {
+					const aDate = a.dataset.cierre ? Date.parse(a.dataset.cierre) : Number.POSITIVE_INFINITY;
+					const bDate = b.dataset.cierre ? Date.parse(b.dataset.cierre) : Number.POSITIVE_INFINITY;
+					return aDate - bDate;
+				}
+				return Number(a.dataset.index ?? 0) - Number(b.dataset.index ?? 0);
+			});
+			sorted.forEach((card) => grid.append(card));
+		};
+
+		const updateResults = () => {
+			const query = normalize(searchInput?.value ?? '');
+			const selectedType = typeFilter?.value ?? '';
+			const selectedArea = areaFilter?.value ?? '';
+			const selectedLocation = locationFilter?.value ?? '';
+			const selectedLevel = levelFilter?.value ?? '';
+			const selectedStatus = statusFilter?.value ?? '';
+			const selectedCost = costFilter?.value ?? '';
+			let visible = 0;
+
+			cards.forEach((card) => {
+				const matchesQuery = !query || normalize(card.dataset.search ?? '').includes(query);
+				const matchesType = !selectedType || card.dataset.tipo === selectedType;
+				const matchesArea = !selectedArea || (card.dataset.area ?? '').split('|').includes(selectedArea);
+				const matchesLocation = !selectedLocation || (card.dataset.ubicacion ?? '').split('|').includes(selectedLocation);
+				const matchesLevel = !selectedLevel || (card.dataset.nivel ?? '').split('|').includes(selectedLevel);
+				const matchesStatus = !selectedStatus || card.dataset.estado === selectedStatus;
+				const matchesCost = !selectedCost || card.dataset.costo === selectedCost;
+				const matches = matchesQuery && matchesType && matchesArea && matchesLocation && matchesLevel && matchesStatus && matchesCost;
+
+				card.hidden = !matches;
+				if (matches) visible += 1;
+			});
+
+			if (count) count.textContent = String(visible);
+			if (emptyState) emptyState.hidden = visible !== 0;
+			if (clearButton) clearButton.hidden = !query && !selectedType && !selectedArea && !selectedLocation && !selectedLevel && !selectedStatus && !selectedCost;
+		};
+
+		searchInput?.addEventListener('input', updateResults);
+		typeFilter?.addEventListener('change', updateResults);
+		areaFilter?.addEventListener('change', updateResults);
+		locationFilter?.addEventListener('change', updateResults);
+		levelFilter?.addEventListener('change', updateResults);
+		statusFilter?.addEventListener('change', updateResults);
+		costFilter?.addEventListener('change', updateResults);
+		sortSelect?.addEventListener('change', sortCards);
+		clearButton?.addEventListener('click', () => {
+			if (searchInput) searchInput.value = '';
+			if (typeFilter) typeFilter.value = '';
+			if (areaFilter) areaFilter.value = '';
+			if (locationFilter) locationFilter.value = '';
+			if (levelFilter) levelFilter.value = '';
+			if (statusFilter) statusFilter.value = '';
+			if (costFilter) costFilter.value = '';
+			updateResults();
+			searchInput?.focus();
+		});
+		sortCards();
+		updateResults();
+	</script>
+</BaseLayout>
+

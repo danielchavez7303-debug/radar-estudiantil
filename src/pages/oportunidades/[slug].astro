@@ -1,0 +1,190 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import oportunidades from '../../data/oportunidades.json';
+import '../../styles/opportunity.css';
+
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
+export function getStaticPaths() {
+	return oportunidades.filter((oportunidad) => oportunidad.publicar && oportunidad.estadoVerificacion === 'verificada').map((oportunidad) => ({
+		params: { slug: oportunidad.slug },
+		props: { oportunidad },
+	}));
+}
+
+const { oportunidad } = Astro.props;
+const estadoLabel: Record<string, string> = {
+	activa: 'Activa',
+	proxima: 'Próxima',
+	permanente: 'Permanente',
+	enProceso: 'En proceso',
+	resultados: 'Resultados publicados',
+	cerrada: 'Cerrada',
+	finalizada: 'Finalizada',
+	porVerificar: 'Por verificar',
+};
+const fecha = (valor: string | null) =>
+	valor
+		? new Intl.DateTimeFormat('es-MX', { dateStyle: 'long' }).format(new Date(`${valor}T12:00:00`))
+		: null;
+---
+
+<BaseLayout
+	title={`${oportunidad.titulo} | Radar Estudiantil`}
+	description={oportunidad.descripcion}
+>
+	<main class="detail-page" id="top">
+		<div class="detail-wrap">
+			<nav class="breadcrumbs" aria-label="Ruta de navegación">
+				<a href={baseUrl}>Inicio</a><span aria-hidden="true">/</span><a href={`${baseUrl}oportunidades`}>Oportunidades</a><span aria-hidden="true">/</span><span>{oportunidad.titulo}</span>
+			</nav>
+
+			<section class={`detail-hero detail-${oportunidad.id}`} aria-labelledby="detalle-titulo">
+				<div class="detail-hero-copy">
+					<div class="detail-badges">
+						<span class="detail-category">{oportunidad.categoria}</span>
+						<span class="detail-status">{estadoLabel[oportunidad.estado] ?? oportunidad.estado}</span>
+					</div>
+					<h1 id="detalle-titulo">{oportunidad.titulo}</h1>
+					<p>{oportunidad.descripcion}</p>
+					<div class="detail-areas" aria-label="Áreas relacionadas">
+						{oportunidad.areas.map((area) => <span>{area}</span>)}
+					</div>
+				</div>
+				<div class="detail-hero-index" aria-hidden="true">Ficha<br /><strong>01</strong></div>
+			</section>
+
+			<div class="detail-layout">
+				<article class="detail-content">
+					<section>
+						<p class="detail-kicker">Sobre la oportunidad</p>
+						<h2>Lo que necesitas saber.</h2>
+						<p>{oportunidad.descripcionLarga}</p>
+					</section>
+
+					<section>
+						<p class="detail-kicker">¿Para quién es?</p>
+						<h2>Encuentra si hace sentido para ti.</h2>
+						<p>{oportunidad.paraQuien}</p>
+					</section>
+
+					{oportunidad.beneficios.length > 0 && <section>
+						<p class="detail-kicker">¿Qué obtienes?</p>
+						<h2>Lo que puede aportarte.</h2>
+						<ul class="requirements benefits-list">
+							{oportunidad.beneficios.map((beneficio) => <li><span aria-hidden="true">✦</span>{beneficio}</li>)}
+						</ul>
+					</section>}
+
+					<section>
+						<p class="detail-kicker">Requisitos</p>
+						<h2>Antes de comenzar.</h2>
+						<ul class="requirements">
+							{oportunidad.requisitos.map((requisito) => <li><span aria-hidden="true">✓</span>{requisito}</li>)}
+						</ul>
+						{oportunidad.documentos.length > 0 && <div class="documents-block">
+							<h3>Documentos que podrían solicitarte</h3>
+							<ul class="requirements">
+								{oportunidad.documentos.map((documento) => <li><span aria-hidden="true">＋</span>{documento}</li>)}
+							</ul>
+						</div>}
+					</section>
+
+					{oportunidad.comoParticipar.length > 0 && <section>
+						<p class="detail-kicker">Cómo participar</p>
+						<h2>Pasos para comenzar.</h2>
+						<ol class="participation-steps">
+							{oportunidad.comoParticipar.map((paso) => <li>{paso}</li>)}
+						</ol>
+					</section>}
+				</article>
+
+				<aside class="detail-aside">
+					<div class="info-card">
+						<p class="aside-kicker">En resumen</p>
+						<dl>
+							<div><dt>Estado</dt><dd>{estadoLabel[oportunidad.estado] ?? oportunidad.estado}</dd></div>
+							<div><dt>Para</dt><dd>{oportunidad.niveles.join(' · ')}</dd></div>
+							<div><dt>Cobertura</dt><dd>{oportunidad.cobertura}</dd></div>
+							<div><dt>Costo</dt><dd>{oportunidad.costo}</dd></div>
+							{(oportunidad.edadMinima || oportunidad.edadMaxima) && <div><dt>Edad</dt><dd>{oportunidad.edadMinima ?? '—'}–{oportunidad.edadMaxima ?? 'sin límite'}</dd></div>}
+							<div><dt>Requiere escuela</dt><dd>{oportunidad.requiereEscuela ? 'Sí' : 'No especificado'}</dd></div>
+							{fecha(oportunidad.fechaInicio) && <div><dt>Inicia</dt><dd>{fecha(oportunidad.fechaInicio)}</dd></div>}
+							{fecha(oportunidad.fechaCierre) && <div><dt>Cierra</dt><dd>{fecha(oportunidad.fechaCierre)}</dd></div>}
+						</dl>
+					</div>
+
+					<div
+						class="eligibility-card"
+						data-eligibility
+						data-levels={oportunidad.niveles.join('|')}
+						data-min-age={oportunidad.edadMinima ?? ''}
+						data-max-age={oportunidad.edadMaxima ?? ''}
+					>
+						<p class="aside-kicker">Comprobación local</p>
+						<h2>¿Parece para ti?</h2>
+						<p>Haz una comprobación rápida con tus datos. No se envían ni se guardan.</p>
+						<label for="perfil-nivel">Tu nivel</label>
+						<select id="perfil-nivel">
+							<option value="">Selecciona tu nivel</option>
+							{oportunidad.niveles.map((nivel) => <option value={nivel}>{nivel}</option>)}
+						</select>
+						<label for="perfil-edad">Tu edad <span>(opcional)</span></label>
+						<input id="perfil-edad" type="number" min="5" max="100" inputmode="numeric" placeholder="Ej. 16" />
+						<button id="comprobar-compatibilidad" type="button">Comprobar compatibilidad</button>
+						<p id="resultado-compatibilidad" class="eligibility-result" role="status" hidden></p>
+						<p class="eligibility-note">Es una orientación, no una decisión oficial. Revisa siempre los requisitos de la institución.</p>
+					</div>
+
+					<div class="source-card">
+						<p class="aside-kicker">Fuente y contacto</p>
+						<h2>{oportunidad.organizacion}</h2>
+						{ oportunidad.enlaceConvocatoria ? (
+							<a class="source-action" href={oportunidad.enlaceConvocatoria} target="_blank" rel="noreferrer">Ir a la convocatoria oficial <span aria-hidden="true">↗</span></a>
+						) : (
+							<p class="source-pending">El enlace oficial se integrará después de verificar esta ficha.</p>
+						) }
+						{ oportunidad.sitioOficial && oportunidad.sitioOficial !== oportunidad.enlaceConvocatoria ? <a class="source-secondary" href={oportunidad.sitioOficial} target="_blank" rel="noreferrer">Visitar sitio oficial ↗</a> : null }
+						{ oportunidad.contactoOficial ? <p class="contact-line">Contacto: {oportunidad.contactoOficial}</p> : null }
+						<div class="verification-line"><span aria-hidden="true">✦</span>{oportunidad.ultimaVerificacion ? `Última verificación: ${fecha(oportunidad.ultimaVerificacion)}` : 'Verificación editorial pendiente'}</div>
+						<p class="source-disclaimer">Radar Estudiantil no organiza ni gestiona esta oportunidad. La institución oficial tiene la última palabra.</p>
+					</div>
+				</aside>
+			</div>
+
+			<div class="detail-back"><a href={`${baseUrl}oportunidades`}>← Volver a todas las oportunidades</a></div>
+		</div>
+	</main>
+
+	<script>
+		const eligibilityCard = document.querySelector<HTMLElement>('[data-eligibility]');
+		const eligibilityButton = document.querySelector<HTMLButtonElement>('#comprobar-compatibilidad');
+		const eligibilityResult = document.querySelector<HTMLElement>('#resultado-compatibilidad');
+		const levelInput = document.querySelector<HTMLSelectElement>('#perfil-nivel');
+		const ageInput = document.querySelector<HTMLInputElement>('#perfil-edad');
+
+		eligibilityButton?.addEventListener('click', () => {
+			if (!eligibilityCard || !eligibilityResult) return;
+			const acceptedLevels = (eligibilityCard.dataset.levels ?? '').split('|');
+			const selectedLevel = levelInput?.value ?? '';
+			const age = Number(ageInput?.value ?? '');
+			const minAge = Number(eligibilityCard.dataset.minAge ?? '');
+			const maxAge = Number(eligibilityCard.dataset.maxAge ?? '');
+			const warnings: string[] = [];
+
+			if (!selectedLevel) warnings.push('selecciona tu nivel educativo');
+			else if (!acceptedLevels.includes(selectedLevel)) warnings.push('tu nivel no aparece entre los niveles indicados');
+			if (age && minAge && age < minAge) warnings.push(`la edad mínima indicada es ${minAge} años`);
+			if (age && maxAge && age > maxAge) warnings.push(`la edad máxima indicada es ${maxAge} años`);
+
+			eligibilityResult.hidden = false;
+			if (warnings.length === 0) {
+				eligibilityResult.className = 'eligibility-result is-compatible';
+				eligibilityResult.textContent = 'Parece compatible con la información disponible. Confirma todo en la fuente oficial.';
+			} else {
+				eligibilityResult.className = 'eligibility-result is-warning';
+				eligibilityResult.textContent = `Revisa: ${warnings.join('; ')}.`;
+			}
+		});
+	</script>
+</BaseLayout>
+

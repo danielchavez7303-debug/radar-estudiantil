@@ -1,0 +1,55 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import '../styles/about.css';
+---
+
+<BaseLayout
+	title="Sobre Radar Estudiantil"
+	description="Conoce el propósito, la metodología y los principios de Radar Estudiantil."
+>
+	<main class="about-page" id="top">
+		<section class="about-hero" aria-labelledby="about-title">
+			<p class="eyebrow"><span class="eyebrow-dot" aria-hidden="true"></span> Sobre el proyecto</p>
+			<h1 id="about-title">Encontrar una oportunidad también es una forma de avanzar.</h1>
+			<p>Radar Estudiantil organiza información educativa dispersa para que estudiantes de México puedan descubrir opciones que quizá no conocían.</p>
+		</section>
+
+		<section class="about-grid" aria-label="Principios del proyecto">
+			<article>
+				<span class="about-number">01</span>
+				<h2>Qué hacemos</h2>
+				<p>Reunimos becas, competencias, cursos, programas, beneficios y recursos en fichas sencillas de explorar.</p>
+			</article>
+			<article>
+				<span class="about-number">02</span>
+				<h2>Qué no hacemos</h2>
+				<p>No otorgamos becas, no organizamos concursos, no recibimos solicitudes y no sustituimos a la institución oficial.</p>
+			</article>
+			<article>
+				<span class="about-number">03</span>
+				<h2>Cómo verificamos</h2>
+				<p>Cada ficha pública debe tener una fuente oficial, una fecha de revisión y un estado editorial antes de aparecer en el catálogo.</p>
+			</article>
+		</section>
+
+		<section class="about-method" aria-labelledby="method-title">
+			<div>
+				<p class="eyebrow eyebrow-light">Una regla sencilla</p>
+				<h2 id="method-title">Radar ayuda a descubrir. La fuente oficial decide.</h2>
+			</div>
+			<div>
+				<p>La plataforma ofrece un resumen claro y enlaces directos. Antes de registrarte, confirma fechas, requisitos, costos y condiciones en el sitio de la organización.</p>
+				<p class="method-note"><span aria-hidden="true">✓</span> Las fichas pendientes de verificación no se publican.</p>
+			</div>
+		</section>
+
+		<section class="about-privacy" aria-labelledby="privacy-title">
+			<div>
+				<p class="eyebrow">Privacidad por diseño</p>
+				<h2 id="privacy-title">Sin cuentas. Sin perfiles. Sin recopilar datos para buscar.</h2>
+			</div>
+			<p>Los filtros y la comprobación de compatibilidad funcionan localmente en tu navegador. El objetivo es ayudarte a encontrar oportunidades, no construir un perfil sobre ti.</p>
+		</section>
+	</main>
+</BaseLayout>
+

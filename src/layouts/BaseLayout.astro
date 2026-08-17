@@ -1,0 +1,51 @@
+---
+import '../styles/global.css';
+
+interface Props {
+	title: string;
+	description: string;
+}
+
+const { title, description } = Astro.props;
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
+---
+
+<!doctype html>
+<html lang="es-MX">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="description" content={description} />
+		<link rel="icon" type="image/svg+xml" href={`${baseUrl}favicon.svg`} />
+		<title>{title}</title>
+	</head>
+	<body>
+		<header class="site-header">
+			<a class="brand" href={baseUrl} aria-label="Radar Estudiantil, inicio">
+				<span class="brand-mark" aria-hidden="true">R</span>
+				<span>Radar <strong>Estudiantil</strong></span>
+			</a>
+			<nav class="site-nav" aria-label="Navegación principal">
+				<a href={`${baseUrl}oportunidades`}>Oportunidades</a>
+				<a href={`${baseUrl}recursos`}>Recursos</a>
+				<a href={`${baseUrl}#como-funciona`}>Cómo funciona</a>
+				<a class="nav-highlight" href={`${baseUrl}acerca`}>Sobre el proyecto <span aria-hidden="true">↗</span></a>
+			</nav>
+		</header>
+		<slot />
+		<footer class="site-footer">
+			<div class="footer-main">
+				<a class="brand" href={baseUrl} aria-label="Radar Estudiantil, inicio">
+					<span class="brand-mark" aria-hidden="true">R</span>
+					<span>Radar <strong>Estudiantil</strong></span>
+				</a>
+				<p>Oportunidades educativas, más fáciles de encontrar.</p>
+			</div>
+			<div class="footer-bottom">
+				<p>Hecho para estudiantes de México · Proyecto gratuito en construcción.</p>
+				<a href="#top">Volver arriba ↑</a>
+			</div>
+		</footer>
+	</body>
+</html>
+

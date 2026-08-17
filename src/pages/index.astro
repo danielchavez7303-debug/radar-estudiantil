@@ -1,0 +1,170 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import oportunidades from '../data/oportunidades.json';
+
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
+const oportunidadesPublicas = oportunidades.filter((oportunidad) => oportunidad.publicar && oportunidad.estadoVerificacion === 'verificada');
+const nivelesRapidos = [...new Set(oportunidadesPublicas.flatMap((oportunidad) => oportunidad.niveles))];
+const ubicacionesRapidas = [...new Set(oportunidadesPublicas.flatMap((oportunidad) => oportunidad.estados))];
+const tiposRapidos = [...new Set(oportunidadesPublicas.map((oportunidad) => oportunidad.categoria))];
+const areasRapidas = [...new Set(oportunidadesPublicas.flatMap((oportunidad) => oportunidad.areas))];
+const estadoLabel: Record<string, string> = {
+	activa: 'Activa',
+	proxima: 'Próxima',
+	permanente: 'Permanente',
+	cerrada: 'Cerrada',
+	porVerificar: 'Por verificar',
+};
+---
+
+<BaseLayout
+	title="Radar Estudiantil | Oportunidades para estudiantes en México"
+	description="Una guía gratuita para encontrar becas, competencias, cursos y recursos educativos."
+>
+	<main id="top">
+		<section class="hero" aria-labelledby="titulo-principal">
+			<div class="hero-copy">
+				<p class="eyebrow"><span class="eyebrow-dot" aria-hidden="true"></span> Educación sin barreras</p>
+				<h1 id="titulo-principal">Las oportunidades no deberían sentirse <em>escondidas.</em></h1>
+				<p class="intro">
+					Radar Estudiantil reúne becas, competencias, cursos y recursos para que estudiantes de México encuentren algo que les impulse.
+				</p>
+				<div class="hero-actions">
+					<a class="button" href="#oportunidades">Explorar oportunidades <span aria-hidden="true">↗</span></a>
+					<a class="text-link" href="#como-funciona">Conoce la idea <span aria-hidden="true">↓</span></a>
+				</div>
+				<p class="hero-note"><span aria-hidden="true">✦</span> Gratis, sin cuentas y pensado para México</p>
+				<form class="home-search" action={`${baseUrl}oportunidades`} method="get">
+					<div class="home-search-main">
+						<span aria-hidden="true">⌕</span>
+						<label class="sr-only" for="home-query">Buscar oportunidades</label>
+						<input id="home-query" name="q" type="search" placeholder="Busca matemáticas, cursos, becas..." />
+					</div>
+					<div class="home-search-filters">
+						<label class="sr-only" for="home-nivel">Nivel educativo</label>
+						<select id="home-nivel" name="nivel">
+							<option value="">Nivel educativo</option>
+							{nivelesRapidos.map((nivel) => <option value={nivel}>{nivel}</option>)}
+						</select>
+						<label class="sr-only" for="home-ubicacion">Ubicación</label>
+						<select id="home-ubicacion" name="ubicacion">
+							<option value="">Ubicación</option>
+							{ubicacionesRapidas.map((ubicacion) => <option value={ubicacion}>{ubicacion}</option>)}
+						</select>
+						<label class="sr-only" for="home-tipo">Tipo de oportunidad</label>
+						<select id="home-tipo" name="tipo">
+							<option value="">Tipo</option>
+							{tiposRapidos.map((tipo) => <option value={tipo}>{tipo}</option>)}
+						</select>
+						<label class="sr-only" for="home-area">Área</label>
+						<select id="home-area" name="area">
+							<option value="">Área</option>
+							{areasRapidas.map((area) => <option value={area}>{area}</option>)}
+						</select>
+						<button type="submit">Explorar <span aria-hidden="true">↗</span></button>
+					</div>
+				</form>
+			</div>
+
+			<div class="hero-visual" aria-label="Vista previa de Radar Estudiantil">
+				<div class="visual-orbit visual-orbit-one" aria-hidden="true"></div>
+				<div class="visual-orbit visual-orbit-two" aria-hidden="true"></div>
+				<div class="visual-shell">
+					<div class="visual-topline">
+						<span class="visual-status"><span class="status-dot" aria-hidden="true"></span> Radar en acción</span>
+						<span class="visual-count">V0.1</span>
+					</div>
+					<div class="visual-search">
+						<span class="search-icon" aria-hidden="true">⌕</span>
+						<span>Encuentra una oportunidad...</span>
+						<span class="search-key">⌘ K</span>
+					</div>
+					<div class="visual-filters" aria-hidden="true">
+						<span>Preparatoria</span><span>México</span><span>Matemáticas</span>
+					</div>
+					<div class="visual-result">
+						<span class="result-icon result-icon-green" aria-hidden="true">✦</span>
+						<span class="result-copy"><strong>Competencias y retos</strong><small>Descubre algo nuevo para ti</small></span>
+						<span class="result-arrow" aria-hidden="true">↗</span>
+					</div>
+					<div class="visual-result visual-result-muted">
+						<span class="result-icon result-icon-yellow" aria-hidden="true">＋</span>
+						<span class="result-copy"><strong>Becas y apoyos</strong><small>Información clara y organizada</small></span>
+						<span class="result-arrow" aria-hidden="true">↗</span>
+					</div>
+				</div>
+				<div class="floating-note"><span aria-hidden="true">✓</span><span><strong>Fuentes oficiales</strong><small>La confianza es parte del diseño</small></span></div>
+			</div>
+		</section>
+
+		<section class="proof-strip" aria-label="Principios del proyecto">
+			<div><strong>01</strong><span>Información reunida</span></div>
+			<div><strong>02</strong><span>Filtros que ayudan</span></div>
+			<div><strong>03</strong><span>Fuentes por revisar</span></div>
+			<div><strong>04</strong><span>Sin datos personales</span></div>
+		</section>
+
+		<section class="section opportunities" id="oportunidades" aria-labelledby="titulo-oportunidades">
+			<div class="section-heading">
+				<div>
+					<p class="eyebrow">El punto de partida</p>
+					<h2 id="titulo-oportunidades">Oportunidades para moverte.</h2>
+					<p>Una primera colección para construir un catálogo útil, claro y fácil de explorar.</p>
+				</div>
+				<span class="section-count">{oportunidadesPublicas.length} oportunidades iniciales</span>
+			</div>
+
+			<div class="card-grid">
+				{
+					oportunidadesPublicas.map((oportunidad, index) => (
+						<article class={`card card-${oportunidad.id}`}>
+							<div class="card-topline">
+								<span class="card-number">0{index + 1}</span>
+								<span class="card-status">{estadoLabel[oportunidad.estado] ?? oportunidad.estado}</span>
+							</div>
+							<p class="tag">{oportunidad.categoria}</p>
+							<h3><a href={`${baseUrl}oportunidades/${oportunidad.slug}`}>{oportunidad.titulo}</a></h3>
+							<p class="card-description">{oportunidad.descripcion}</p>
+							<div class="card-meta">
+								<span>{oportunidad.cobertura}</span>
+								<span>{oportunidad.niveles.slice(0, 2).join(' · ')}</span>
+							</div>
+							<div class="card-bottom">
+								<p class="card-organization"><span class="source-dot" aria-hidden="true"></span>{oportunidad.organizacion}</p>
+								<a class="card-link" href={`${baseUrl}oportunidades/${oportunidad.slug}`}>Ver detalles <span aria-hidden="true">↗</span></a>
+							</div>
+						</article>
+					))
+				}
+			</div>
+			<p class="catalog-note"><span aria-hidden="true">✦</span> Este es el inicio. El catálogo crecerá con oportunidades revisadas y organizadas.</p>
+		</section>
+
+		<section class="section how-section" id="como-funciona" aria-labelledby="titulo-como-funciona">
+			<div class="section-heading section-heading-tight">
+				<div>
+					<p class="eyebrow">La idea en simple</p>
+					<h2 id="titulo-como-funciona">Del descubrimiento a la acción.</h2>
+				</div>
+				<p>Una experiencia que empieza sencilla y puede crecer contigo.</p>
+			</div>
+			<div class="steps-grid">
+				<div class="step"><span class="step-number">01</span><h3>Explora</h3><p>Encuentra oportunidades reunidas en un mismo lugar.</p></div>
+				<div class="step"><span class="step-number">02</span><h3>Filtra</h3><p>Acércate a lo que coincide con tu nivel, estado e intereses.</p></div>
+				<div class="step"><span class="step-number">03</span><h3>Confirma</h3><p>Consulta siempre la convocatoria o fuente oficial antes de participar.</p></div>
+			</div>
+		</section>
+
+		<section class="about-panel" id="acerca" aria-labelledby="titulo-acerca">
+			<div>
+				<p class="eyebrow eyebrow-light">Una plataforma abierta</p>
+				<h2 id="titulo-acerca">Más oportunidades, menos ruido.</h2>
+			</div>
+			<div>
+				<p>Radar Estudiantil nace para hacer visible lo que muchas veces está disperso: una beca, un concurso, un curso o un recurso que puede cambiar el siguiente paso de alguien.</p>
+				<p class="about-note"><span aria-hidden="true">✓</span> Sin cuentas. Sin perfiles. Sin recopilar información personal.</p>
+			</div>
+		</section>
+	</main>
+</BaseLayout>
+
