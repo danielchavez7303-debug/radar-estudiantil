@@ -16,12 +16,40 @@
 	line-height: 0.96;
 }
 
-.about-hero > p:last-child {
+.about-hero > p:not(.eyebrow) {
 	max-width: 620px;
 	margin: 0;
 	color: var(--muted);
 	font-size: 1.1rem;
 	line-height: 1.7;
+}
+
+.about-facts {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 1rem;
+	margin-top: 2.8rem;
+	padding-top: 1.3rem;
+	border-top: 1px solid var(--line);
+}
+
+.about-facts div {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+}
+
+.about-facts strong {
+	color: var(--ink);
+	font-size: 0.78rem;
+	font-weight: 850;
+}
+
+.about-facts span {
+	max-width: 170px;
+	color: var(--muted);
+	font-size: 0.72rem;
+	line-height: 1.45;
 }
 
 .about-grid {
@@ -143,7 +171,8 @@
 
 	.about-grid,
 	.about-method,
-	.about-privacy {
+	.about-privacy,
+	.about-facts {
 		grid-template-columns: 1fr;
 	}
 
@@ -170,9 +199,17 @@
 		gap: 1.5rem;
 	}
 
+	.about-facts {
+		gap: 0.9rem;
+		margin-top: 2rem;
+	}
+
+	.about-facts span {
+		max-width: none;
+	}
+
 	.about-privacy {
 		gap: 1.5rem;
 		padding-top: 4.5rem;
 	}
 }
-

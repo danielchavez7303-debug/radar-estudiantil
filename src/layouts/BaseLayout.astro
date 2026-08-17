@@ -4,10 +4,24 @@ import '../styles/global.css';
 interface Props {
 	title: string;
 	description: string;
+	image?: string;
 }
 
-const { title, description } = Astro.props;
+const { title, description, image } = Astro.props;
 const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
+const siteOrigin = Astro.site ?? new URL('https://radarestudiantil.pages.dev');
+const canonicalUrl = new URL(Astro.url.pathname, siteOrigin).toString();
+const socialImageUrl = new URL(image ?? 'social-card.svg', siteOrigin).toString();
+const currentPath = Astro.url.pathname.replace(/\/+$/, '') || '/';
+const isActive = (path: string) => currentPath === path.replace(/\/+$/, '') || currentPath.startsWith(`${path.replace(/\/+$/, '')}/`);
+const websiteSchema = {
+	'@context': 'https://schema.org',
+	'@type': 'WebSite',
+	'name': 'Radar Estudiantil',
+	'url': siteOrigin.toString(),
+	'description': 'Directorio gratuito de oportunidades educativas para estudiantes de México.',
+	'inLanguage': 'es-MX',
+};
 ---
 
 <!doctype html>
@@ -16,20 +30,41 @@ const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_UR
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width" />
 		<meta name="description" content={description} />
+		<meta name="theme-color" content="#137a4b" />
+		<link rel="canonical" href={canonicalUrl} />
 		<link rel="icon" type="image/svg+xml" href={`${baseUrl}favicon.svg`} />
+		<meta property="og:type" content="website" />
+		<meta property="og:locale" content="es_MX" />
+		<meta property="og:site_name" content="Radar Estudiantil" />
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={description} />
+		<meta property="og:url" content={canonicalUrl} />
+		<meta property="og:image" content={socialImageUrl} />
+		<meta property="og:image:alt" content="Radar Estudiantil" />
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={title} />
+		<meta name="twitter:description" content={description} />
+		<meta name="twitter:image" content={socialImageUrl} />
+		<script type="application/ld+json" is:inline set:html={JSON.stringify(websiteSchema)} />
 		<title>{title}</title>
 	</head>
 	<body>
+		<a class="skip-link" href="#top">Saltar al contenido principal</a>
 		<header class="site-header">
 			<a class="brand" href={baseUrl} aria-label="Radar Estudiantil, inicio">
 				<span class="brand-mark" aria-hidden="true">R</span>
 				<span>Radar <strong>Estudiantil</strong></span>
 			</a>
-			<nav class="site-nav" aria-label="Navegación principal">
-				<a href={`${baseUrl}oportunidades`}>Oportunidades</a>
-				<a href={`${baseUrl}recursos`}>Recursos</a>
+			<button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-navigation" aria-label="Abrir menú">
+				<span class="nav-toggle-line" aria-hidden="true"></span>
+				<span class="nav-toggle-line" aria-hidden="true"></span>
+				<span class="nav-toggle-line" aria-hidden="true"></span>
+			</button>
+			<nav class="site-nav" id="site-navigation" aria-label="Navegación principal">
+				<a class:list={{ 'is-active': isActive(`${baseUrl}oportunidades`) }} href={`${baseUrl}oportunidades`} aria-current={isActive(`${baseUrl}oportunidades`) ? 'page' : undefined}>Oportunidades</a>
+				<a class:list={{ 'is-active': isActive(`${baseUrl}recursos`) }} href={`${baseUrl}recursos`} aria-current={isActive(`${baseUrl}recursos`) ? 'page' : undefined}>Recursos</a>
 				<a href={`${baseUrl}#como-funciona`}>Cómo funciona</a>
-				<a class="nav-highlight" href={`${baseUrl}acerca`}>Sobre el proyecto <span aria-hidden="true">↗</span></a>
+				<a class:list={{ 'nav-highlight': true, 'is-active': isActive(`${baseUrl}acerca`) }} href={`${baseUrl}acerca`} aria-current={isActive(`${baseUrl}acerca`) ? 'page' : undefined}>Sobre el proyecto <span aria-hidden="true">↗</span></a>
 			</nav>
 		</header>
 		<slot />
@@ -46,6 +81,38 @@ const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_UR
 				<a href="#top">Volver arriba ↑</a>
 			</div>
 		</footer>
+		<script>
+			const navToggle = document.querySelector<HTMLButtonElement>('.nav-toggle');
+			const siteNav = document.querySelector<HTMLElement>('#site-navigation');
+			const siteHeader = document.querySelector<HTMLElement>('.site-header');
+			const mobileBreakpoint = 680;
+
+			const closeMenu = () => {
+				if (!navToggle || !siteNav) return;
+				navToggle.setAttribute('aria-expanded', 'false');
+				navToggle.setAttribute('aria-label', 'Abrir menú');
+				siteNav.classList.remove('is-open');
+				siteHeader?.classList.remove('menu-open');
+			};
+
+			navToggle?.addEventListener('click', () => {
+				if (!siteNav) return;
+				const isOpen = siteNav.classList.toggle('is-open');
+				navToggle.setAttribute('aria-expanded', String(isOpen));
+				navToggle.setAttribute('aria-label', isOpen ? 'Cerrar menú' : 'Abrir menú');
+				siteHeader?.classList.toggle('menu-open', isOpen);
+			});
+
+			siteNav?.querySelectorAll('a').forEach((link) => link.addEventListener('click', closeMenu));
+			document.addEventListener('keydown', (event) => {
+				if (event.key === 'Escape') closeMenu();
+			});
+			document.addEventListener('click', (event) => {
+				if (siteHeader && siteNav?.classList.contains('is-open') && !siteHeader.contains(event.target as Node)) closeMenu();
+			});
+			window.addEventListener('resize', () => {
+				if (window.innerWidth > mobileBreakpoint) closeMenu();
+			});
+		</script>
 	</body>
 </html>
-

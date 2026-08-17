@@ -64,6 +64,12 @@ const estadoLabel: Record<string, string> = {
 						<button type="submit">Explorar <span aria-hidden="true">↗</span></button>
 					</div>
 				</form>
+				<nav class="home-quick-links" aria-label="Atajos de búsqueda">
+					<span>Explora rápido</span>
+					<a href={`${baseUrl}oportunidades?q=gratuito`}>Gratis</a>
+					<a href={`${baseUrl}oportunidades?q=en%20linea`}>En línea</a>
+					<a href={`${baseUrl}oportunidades?q=principiantes`}>Para principiantes</a>
+				</nav>
 			</div>
 
 			<div class="hero-visual" aria-label="Vista previa de Radar Estudiantil">
@@ -137,6 +143,12 @@ const estadoLabel: Record<string, string> = {
 					))
 				}
 			</div>
+			{oportunidadesPublicas.length === 0 && <div class="home-empty-state" role="status">
+				<span aria-hidden="true">⌕</span>
+				<strong>Estamos preparando el primer catálogo.</strong>
+				<p>Muy pronto encontrarás oportunidades revisadas para explorar.</p>
+				<a class="button" href={`${baseUrl}acerca`}>Conoce el proyecto <span aria-hidden="true">↗</span></a>
+			</div>}
 			<p class="catalog-note"><span aria-hidden="true">✦</span> Este es el inicio. El catálogo crecerá con oportunidades revisadas y organizadas.</p>
 		</section>
 
@@ -167,4 +179,3 @@ const estadoLabel: Record<string, string> = {
 		</section>
 	</main>
 </BaseLayout>
-
