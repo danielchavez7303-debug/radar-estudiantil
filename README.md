@@ -15,9 +15,9 @@ La aplicación estará disponible en `http://localhost:4321`.
 
 ## Publicación
 
-El sitio se publica en GitHub Pages mediante GitHub Actions:
+El sitio se publica en Cloudflare Pages mediante la integración con GitHub:
 
-`https://danielchavez7303-debug.github.io/radar-estudiantil/`
+`https://radarestudiantil.pages.dev`
 
 Cada cambio enviado a la rama principal vuelve a compilar y publicar la versión estática.
 
