@@ -47,5 +47,6 @@ Los borradores permanecen en el archivo de datos, pero no se muestran ni generan
 - Radar Estudiantil conecta con la fuente oficial; no organiza convocatorias ni recibe solicitudes.
 - No hay cuentas, autenticación, backend, base de datos ni recopilación de datos personales.
 - La búsqueda, los filtros y la comprobación de compatibilidad funcionan localmente en el navegador.
+- Los favoritos y preferencias de exploración opcionales se guardan únicamente en el dispositivo mediante almacenamiento local; no se envían a un servidor.
 - Las fuentes oficiales tienen la última palabra y deben revisarse antes de participar.
 
