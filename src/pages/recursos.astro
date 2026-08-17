@@ -1,0 +1,68 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import oportunidades from '../data/oportunidades.json';
+import '../styles/catalog.css';
+
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
+const recursos = oportunidades.filter(
+	(oportunidad) => oportunidad.publicar && oportunidad.estadoVerificacion === 'verificada' && ['Recurso gratuito', 'Curso', 'Beneficio estudiantil'].includes(oportunidad.categoria),
+);
+const estadoLabel: Record<string, string> = {
+	permanente: 'Permanente',
+	activa: 'Activa',
+	proxima: 'Próxima',
+};
+---
+
+<BaseLayout
+	title="Recursos para estudiantes | Radar Estudiantil"
+	description="Herramientas, cursos y beneficios educativos para estudiantes de México."
+>
+	<main class="catalog-page" id="top">
+		<section class="catalog-hero" aria-labelledby="recursos-titulo">
+			<div class="catalog-hero-inner">
+				<div>
+					<p class="eyebrow eyebrow-light"><span class="eyebrow-dot" aria-hidden="true"></span> Recursos estudiantiles</p>
+					<h1 id="recursos-titulo">Aprende y avanza con mejores herramientas.</h1>
+					<p>Una selección de cursos, plataformas y beneficios que pueden acompañar tu camino.</p>
+				</div>
+				<div class="catalog-hero-stat"><strong>{recursos.length}</strong><span>recursos<br />publicados</span></div>
+			</div>
+		</section>
+
+		<section class="catalog-content" aria-labelledby="recursos-lista-titulo">
+			<div class="catalog-result-bar">
+				<div>
+					<h2 id="recursos-lista-titulo"><span>{recursos.length}</span> recursos seleccionados</h2>
+					<p>La misma información vive en el catálogo general y conserva su fuente oficial.</p>
+				</div>
+				<a class="catalog-back-link" href={`${baseUrl}oportunidades`}>Explorar todo el catálogo ↗</a>
+			</div>
+
+			<div class="catalog-grid">
+				{recursos.map((recurso) => (
+					<article class={`opportunity-card opportunity-${recurso.id}`}>
+						<div class="opportunity-card-topline">
+							<span class="opportunity-type">{recurso.categoria}</span>
+							<span class="opportunity-status">{estadoLabel[recurso.estado] ?? recurso.estado}</span>
+						</div>
+						<h3><a href={`${baseUrl}oportunidades/${recurso.slug}`}>{recurso.titulo}</a></h3>
+						<p>{recurso.descripcion}</p>
+						<div class="opportunity-details">
+							<span><strong>Para:</strong> {recurso.niveles.slice(0, 2).join(' · ')}</span>
+							<span><strong>Costo:</strong> {recurso.costo}</span>
+						</div>
+						<div class="opportunity-verification"><span aria-hidden="true">✓</span> Verificado {recurso.ultimaVerificacion}</div>
+						<div class="opportunity-card-footer">
+							<span>{recurso.organizacion}</span>
+							<a href={`${baseUrl}oportunidades/${recurso.slug}`}>Ver ficha <span aria-hidden="true">↗</span></a>
+						</div>
+					</article>
+				))}
+			</div>
+
+			<p class="catalog-disclaimer"><span aria-hidden="true">✦</span> Revisa siempre las condiciones actuales en el sitio oficial antes de utilizar un recurso.</p>
+		</section>
+	</main>
+</BaseLayout>
+
