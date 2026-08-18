@@ -104,7 +104,7 @@ const runAi = async (context, profile, results) => {
 			{ role: 'system', content: buildSystemPrompt() },
 			{ role: 'user', content: buildUserPrompt(profile, candidates) },
 		],
-		max_tokens: 420,
+		max_tokens: 320,
 		temperature: 0.1,
 		top_p: 0.85,
 		response_format: { type: 'json_object' },
