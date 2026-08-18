@@ -108,9 +108,22 @@ const relevanceBase = catalogRelevanceBase;
 						<h2 id="assistant-radar-title">Encuentra opciones que encajen contigo.</h2>
 						<p>Usa las oportunidades verificadas del catálogo. No necesitas crear una cuenta.</p>
 					</div>
-					<button class="assistant-radar-toggle" id="assistant-toggle" type="button" aria-expanded="false" aria-controls="assistant-panel">Abrir asistente <span aria-hidden="true">↗</span></button>
+					<button class="assistant-radar-toggle" id="assistant-toggle" type="button" aria-expanded="false" aria-controls="assistant-panel">✨ Abrir Asistente Radar <span aria-hidden="true">↗</span></button>
 				</div>
-				<div class="assistant-radar-panel" id="assistant-panel" hidden>
+				<div class="assistant-backdrop" id="assistant-backdrop" hidden></div>
+				<div class="assistant-radar-panel" id="assistant-panel" role="dialog" aria-modal="true" aria-labelledby="assistant-panel-title" hidden>
+					<div class="assistant-panel-topbar">
+						<div>
+							<span class="assistant-panel-kicker">✨ Radar en línea</span>
+							<h3 id="assistant-panel-title">Tu consejero de oportunidades</h3>
+							<p>Te orienta con fichas verificadas del catálogo y te dice qué revisar después.</p>
+						</div>
+						<div class="assistant-panel-actions">
+							<button class="assistant-panel-filter" id="assistant-filter-link" type="button">Usar filtros normales</button>
+							<button class="assistant-panel-close" id="assistant-close" type="button" aria-label="Cerrar Asistente Radar">×</button>
+						</div>
+					</div>
+					<div class="assistant-panel-scroll">
 					<form id="assistant-form" class="assistant-form">
 						<div class="assistant-form-grid">
 							<label>
@@ -190,6 +203,7 @@ const relevanceBase = catalogRelevanceBase;
 						</div>
 						<ol class="assistant-recommendations" id="assistant-recommendations"></ol>
 						<p class="assistant-source-note" id="assistant-source-note"></p>
+					</div>
 					</div>
 				</div>
 			</section>
@@ -702,8 +716,12 @@ const relevanceBase = catalogRelevanceBase;
 	</script>
 
 	<script>
+		const assistantRoot = document.querySelector<HTMLElement>('.assistant-radar');
 		const assistantToggle = document.querySelector<HTMLButtonElement>('#assistant-toggle');
 		const assistantPanel = document.querySelector<HTMLElement>('#assistant-panel');
+		const assistantBackdrop = document.querySelector<HTMLElement>('#assistant-backdrop');
+		const assistantClose = document.querySelector<HTMLButtonElement>('#assistant-close');
+		const assistantFilterLink = document.querySelector<HTMLButtonElement>('#assistant-filter-link');
 		const assistantForm = document.querySelector<HTMLFormElement>('#assistant-form');
 		const assistantStatus = document.querySelector<HTMLElement>('#assistant-status');
 		const assistantResults = document.querySelector<HTMLElement>('#assistant-results');
@@ -717,6 +735,7 @@ const relevanceBase = catalogRelevanceBase;
 		const assistantSuggestions = document.querySelector<HTMLElement>('#assistant-chat-suggestions');
 		const assistantEndpoint = '/api/asistente';
 		let assistantConversation: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+		let assistantWelcomeShown = false;
 
 		const setAssistantStatus = (message, tone = 'info') => {
 			if (!assistantStatus) return;
@@ -736,10 +755,8 @@ const relevanceBase = catalogRelevanceBase;
 			assistantChatLog.scrollTop = assistantChatLog.scrollHeight;
 		};
 
-		const assistantReplyText = (payload) => {
-			const recommendations = (payload.recommendations ?? []).slice(0, 3).map((recommendation) => `${recommendation.titulo}: ${recommendation.reason}`).join('\n');
-			return [payload.message, recommendations].filter(Boolean).join('\n');
-		};
+		const assistantReplyText = (payload) => payload.message
+			|| 'Encontré opciones verificadas en Radar. Revisa las fichas y sus requisitos antes de postularte.';
 
 		const createCriteria = (compatibility = {}) => {
 			const criteria = document.createElement('div');
@@ -840,13 +857,48 @@ const relevanceBase = catalogRelevanceBase;
 			};
 		};
 
-		assistantToggle?.addEventListener('click', () => {
+		const showAssistantWelcome = () => {
+			if (assistantWelcomeShown || !assistantChatLog) return;
+			assistantWelcomeShown = true;
+			appendAssistantMessage('assistant', 'Hola. Soy el Asistente Radar. Dime tu nivel, estado, intereses y si necesitas algo gratuito; te recomendaré fichas concretas.');
+		};
+
+		const openAssistant = () => {
 			if (!assistantPanel) return;
-			const open = assistantPanel.hidden;
-			assistantPanel.hidden = !open;
-			assistantToggle.setAttribute('aria-expanded', String(open));
-			assistantToggle.innerHTML = open ? 'Cerrar asistente <span aria-hidden="true">×</span>' : 'Abrir asistente <span aria-hidden="true">↗</span>';
-			if (open) assistantMessageField?.focus();
+			assistantPanel.hidden = false;
+			if (assistantBackdrop) assistantBackdrop.hidden = false;
+			assistantRoot?.classList.add('is-open');
+			document.body.classList.add('assistant-open');
+			assistantToggle?.setAttribute('aria-expanded', 'true');
+			if (assistantToggle) assistantToggle.innerHTML = 'Cerrar asistente <span aria-hidden="true">×</span>';
+			showAssistantWelcome();
+			window.setTimeout(() => assistantMessageField?.focus(), 40);
+		};
+
+		const closeAssistant = () => {
+			if (!assistantPanel) return;
+			assistantPanel.hidden = true;
+			if (assistantBackdrop) assistantBackdrop.hidden = true;
+			assistantRoot?.classList.remove('is-open');
+			document.body.classList.remove('assistant-open');
+			assistantToggle?.setAttribute('aria-expanded', 'false');
+			if (assistantToggle) assistantToggle.innerHTML = '✨ Abrir Asistente Radar <span aria-hidden="true">↗</span>';
+			assistantToggle?.focus();
+		};
+
+		assistantToggle?.addEventListener('click', () => {
+			if (assistantPanel?.hidden) openAssistant();
+			else closeAssistant();
+		});
+		assistantClose?.addEventListener('click', closeAssistant);
+		assistantBackdrop?.addEventListener('click', closeAssistant);
+		assistantFilterLink?.addEventListener('click', () => {
+			closeAssistant();
+			document.querySelector('#busqueda')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+			document.querySelector<HTMLInputElement>('#busqueda')?.focus();
+		});
+		document.addEventListener('keydown', (event) => {
+			if (event.key === 'Escape' && assistantPanel && !assistantPanel.hidden) closeAssistant();
 		});
 
 		assistantSuggestions?.addEventListener('click', (event) => {
@@ -908,10 +960,12 @@ const relevanceBase = catalogRelevanceBase;
 		assistantReset?.addEventListener('click', () => {
 			assistantForm?.reset();
 			assistantConversation = [];
+			assistantWelcomeShown = false;
 			assistantChatLog?.replaceChildren();
-			if (assistantChat) assistantChat.hidden = true;
+			if (assistantChat) assistantChat.hidden = false;
 			if (assistantResults) assistantResults.hidden = true;
 			setAssistantStatus('');
+			showAssistantWelcome();
 			assistantMessageField?.focus();
 		});
 	</script>
