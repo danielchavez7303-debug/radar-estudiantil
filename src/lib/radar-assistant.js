@@ -26,7 +26,7 @@ export const buildCompatibilityReason = (candidate) => {
 	const matches = (candidate?.compatibilidad?.coinciden ?? [])
 		.map((criterion) => criterionPhrase[criterion])
 		.filter(Boolean);
-	if (!matches.length) return candidate?.compatibilidad?.resumen || 'Aparece entre las opciones mejor compatibles de Radar.';
+	if (!matches.length) return 'Está activa y verificada en el catálogo de Radar; revisa sus requisitos antes de postularte.';
 	return `Buena opción porque ${joinSpanish(matches)}.`;
 };
 
@@ -50,7 +50,7 @@ export const sanitizeConversation = (history) => (Array.isArray(history) ? histo
 const readableReason = (reason, candidate) => {
 	const normalized = typeof reason === 'string' ? reason.replace(/\s+/g, ' ').trim() : '';
 	if (/\bREF\s*\d{1,2}\s*[:.)\-]/i.test(normalized)) return normalized.slice(0, 240);
-	if (!normalized || MACHINE_READABLE_REASON.test(normalized) || /\s\|\s/.test(normalized)) return buildCompatibilityReason(candidate);
+	if (!normalized || /^Coincide en 0 de \d+ criterios relevantes\.?$/i.test(normalized) || MACHINE_READABLE_REASON.test(normalized) || /\s\|\s/.test(normalized)) return buildCompatibilityReason(candidate);
 	return normalized.slice(0, 240);
 };
 

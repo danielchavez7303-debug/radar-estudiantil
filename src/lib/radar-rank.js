@@ -37,6 +37,27 @@ const TYPE_ALIASES = {
 	'Recurso gratuito': ['recurso', 'software', 'herramienta'],
 };
 
+const INTEREST_ALIASES = {
+	Programación: ['programacion', 'codigo', 'codificacion', 'desarrollo web'],
+	Matemáticas: ['matematicas', 'matematica', 'algebra', 'geometria'],
+	Ciencia: ['ciencia', 'cientifico', 'fisica', 'quimica', 'biologia'],
+	'Tecnología': ['tecnologia', 'computacion', 'informatica', 'software'],
+	'Inteligencia artificial': ['inteligencia artificial', 'machine learning', 'aprendizaje automatico'],
+	Robótica: ['robotica', 'robots'],
+	Arte: ['arte', 'dibujo', 'pintura'],
+	Música: ['musica', 'instrumento', 'canto'],
+	Lectura: ['lectura', 'libros', 'literatura'],
+	Escritura: ['escritura', 'cuento', 'ensayo', 'poesia'],
+	Emprendimiento: ['emprendimiento', 'emprender', 'negocio'],
+	Idiomas: ['idiomas', 'ingles', 'frances', 'lenguas'],
+	'Videojuegos': ['videojuegos', 'videojuego', 'gaming'],
+	Fotografía: ['fotografia', 'foto', 'video'],
+	'Deporte': ['deporte', 'futbol', 'atletismo'],
+	'Salud': ['salud', 'medicina', 'nutricion'],
+	'Investigación': ['investigacion', 'investigar'],
+	'Medio ambiente': ['medio ambiente', 'ambiental', 'sustentabilidad'],
+};
+
 const STATUS_SCORES = {
 	activa: 24,
 	permanente: 20,
@@ -123,18 +144,27 @@ const extractLevel = (message) => {
 	return options.find((level) => normalizedMessage.includes(normalizeText(level))) ?? null;
 };
 
+const containsWholeAlias = (normalizedText, alias) => {
+	const normalizedAlias = normalizeText(alias);
+	if (!normalizedAlias) return false;
+	const escapedAlias = normalizedAlias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	return new RegExp(`(?:^|\\s)${escapedAlias}(?:$|\\s|[,.;:!?])`, 'i').test(normalizedText);
+};
+
 const extractType = (message) => {
 	const normalizedMessage = normalizeText(message);
-	const containsAlias = (alias) => {
-		const normalizedAlias = normalizeText(alias);
-		if (!normalizedAlias) return false;
-		const escapedAlias = normalizedAlias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-		return new RegExp(`(?:^|\\s)${escapedAlias}(?:$|\\s|[,.;:!?])`, 'i').test(normalizedMessage);
-	};
 	for (const [type, aliases] of Object.entries(TYPE_ALIASES)) {
-		if (aliases.some(containsAlias)) return type;
+		if (aliases.some((alias) => containsWholeAlias(normalizedMessage, alias))) return type;
 	}
 	return null;
+};
+
+const extractInterests = (message) => {
+	const normalizedMessage = normalizeText(message);
+	return Object.entries(INTEREST_ALIASES)
+		.filter(([, aliases]) => aliases.some((alias) => containsWholeAlias(normalizedMessage, alias)))
+		.map(([interest]) => interest)
+		.slice(0, 8);
 };
 
 export const isPromptInjection = (message = '') => {
@@ -165,11 +195,12 @@ export const normalizeProfile = (input = {}, message = '') => {
 	const rawState = String(input.state ?? '').trim();
 	const rawType = String(input.type ?? '').trim();
 	const rawModality = String(input.modality ?? '').trim().toLocaleLowerCase('es-MX');
-	const interests = list(input.interests ?? input.area)
+	const explicitInterests = list(input.interests ?? input.area)
 		.flatMap((item) => String(item).split(/[,;|]/))
 		.map((item) => sanitizeMessage(item, 80))
 		.filter(Boolean)
 		.slice(0, 8);
+	const interests = explicitInterests.length ? explicitInterests : extractInterests(safeMessage);
 	const explicitFree = input.free === true || input.free === 'true' || input.free === 1 || input.free === '1';
 	const inferredFree = /\b(gratis|gratuito|sin costo|sin cuota)\b/i.test(safeMessage);
 	const historical = Boolean(input.historical) || /\b(historic|cerrad|resultados|anteriores)\b/i.test(safeMessage);
