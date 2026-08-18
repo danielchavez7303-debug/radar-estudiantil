@@ -160,22 +160,34 @@ export const validateModelTextRecommendations = (text, candidates) => {
 	if (!text) return [];
 	const byReference = new Map(candidates.map((candidate) => [String(candidate.ref ?? ''), candidate]));
 	const seen = new Set();
-	return text.split(/\r?\n/)
-		.map((line) => line.replace(/^\s*(?:[-*•]\s*)?/, '').trim())
-		.map((line) => {
-			const match = line.match(/^(?:REF\s*)?(\d{1,2})\s*[:.)\-]\s*(.+)$/i);
-			if (!match) return null;
-			const candidate = byReference.get(match[1]);
-			if (!candidate || seen.has(candidate.slug)) return null;
+	const recommendations = [];
+	for (const rawLine of text.split(/\r?\n/)) {
+		const line = rawLine.replace(/^\s*(?:[-*•]\s*)?/, '').trim();
+		if (!line) continue;
+
+		// Algunos modelos devuelven varias referencias en una sola línea
+		// (por ejemplo, "REF 1: ... REF 2: ..."). Extraemos cada marcador
+		// para que cada candidata conserve su propia razón en la interfaz.
+		const markers = [...line.matchAll(/(?:^|\s)(?:REF\s*)?(\d{1,2})\s*[:.)\-]\s*/gi)];
+		for (let index = 0; index < markers.length; index += 1) {
+			const marker = markers[index];
+			const nextMarker = markers[index + 1];
+			const reasonStart = marker.index + marker[0].length;
+			const reasonEnd = nextMarker ? nextMarker.index : line.length;
+			const candidate = byReference.get(marker[1]);
+			const reason = line.slice(reasonStart, reasonEnd).replace(/^\s+|\s+$/g, '');
+			if (!candidate || seen.has(candidate.slug) || !reason) continue;
 			seen.add(candidate.slug);
-			return {
+			const cleanReason = reason.replace(/[|;]\s*$/, '').replace(/\s+/g, ' ').trim();
+			recommendations.push({
 				...candidate,
-				reason: match[2].replace(/\s+/g, ' ').trim().slice(0, 360) || candidate.compatibilidad?.resumen || '',
+				reason: cleanReason.slice(0, 360) || candidate.compatibilidad?.resumen || '',
 				warning: '',
-			};
-		})
-		.filter(Boolean)
-		.slice(0, MAX_RECOMMENDATIONS);
+			});
+			if (recommendations.length >= MAX_RECOMMENDATIONS) return recommendations;
+		}
+	}
+	return recommendations;
 };
 
 export const deterministicRecommendation = (result, baseUrl = '/') => ({
