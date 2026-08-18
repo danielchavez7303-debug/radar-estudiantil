@@ -122,9 +122,24 @@ const runAi = async (context, profile, results) => {
 		responseLength: typeof responseText === 'string' ? responseText.length : null,
 	}));
 	const payload = extractModelJson(result);
-	const recommendations = validateModelRecommendations(payload, candidates);
-	const textRecommendations = recommendations.length ? recommendations : validateModelTextRecommendations(extractModelText(result), candidates);
-	if (textRecommendations.length === 0) throw new Error('AI_NO_VALID_RECOMMENDATIONS');
+	const jsonRecommendations = validateModelRecommendations(payload, candidates);
+	const modelText = extractModelText(result);
+	const textRecommendations = validateModelTextRecommendations(modelText, candidates);
+	const hasEmbeddedReferences = jsonRecommendations.some((recommendation) => /(?:^|\s)(?:REF\s*)\d{1,2}\s*[:.)\-]/i.test(recommendation.reason));
+	let recommendations = jsonRecommendations;
+	if (hasEmbeddedReferences) {
+		// Algunos modelos envuelven varias razones "REF N: ..." dentro
+		// del reason de un único objeto JSON. Reensamblamos el texto con
+		// la referencia original para recuperar todas las candidatas válidas.
+		const expanded = validateModelTextRecommendations(
+			jsonRecommendations.map((recommendation) => `REF ${recommendation.ref}: ${recommendation.reason}`).join('\n'),
+			candidates,
+		);
+		if (expanded.length > recommendations.length) recommendations = expanded;
+	} else if (textRecommendations.length > recommendations.length) {
+		recommendations = textRecommendations;
+	}
+	if (recommendations.length === 0) throw new Error('AI_NO_VALID_RECOMMENDATIONS');
 	const intro = typeof payload?.intro === 'string' && payload.intro.trim()
 		? payload.intro.trim().slice(0, 500)
 		: 'Estas parecen las opciones más compatibles con tu búsqueda:';
@@ -132,7 +147,7 @@ const runAi = async (context, profile, results) => {
 		mode: 'ai',
 		explanationAvailable: true,
 		message: intro,
-		recommendations: textRecommendations.map((recommendation) => ({
+		recommendations: recommendations.map((recommendation) => ({
 			...recommendation,
 			url: `${BASE_URL}oportunidades/${recommendation.slug}`,
 		})),
