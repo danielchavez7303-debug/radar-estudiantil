@@ -78,10 +78,12 @@ export const validateModelRecommendations = (payload, candidates) => {
 		.map((item) => {
 			seen.add(item.slug);
 			const candidate = bySlug.get(item.slug);
+			const reason = item.reason ?? item.explanation ?? item.why ?? candidate.compatibilidad?.resumen;
+			const warning = item.warning ?? item.alert ?? '';
 			return {
 				...candidate,
-				reason: typeof item.reason === 'string' ? item.reason.replace(/\s+/g, ' ').trim().slice(0, 360) : '',
-				warning: typeof item.warning === 'string' ? item.warning.replace(/\s+/g, ' ').trim().slice(0, 240) : '',
+				reason: typeof reason === 'string' ? reason.replace(/\s+/g, ' ').trim().slice(0, 360) : '',
+				warning: typeof warning === 'string' ? warning.replace(/\s+/g, ' ').trim().slice(0, 240) : '',
 			};
 		})
 		.filter((item) => item.reason)
@@ -96,3 +98,4 @@ export const deterministicRecommendation = (result, baseUrl = '/') => ({
 });
 
 export const normalizeModelText = (value) => normalizeText(String(value ?? '')).slice(0, 500);
+
