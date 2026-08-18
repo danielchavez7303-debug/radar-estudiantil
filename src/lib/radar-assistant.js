@@ -63,10 +63,45 @@ export const extractModelJson = (value) => {
 	const text = typeof raw === 'string' ? raw : raw?.response ?? raw?.text ?? '';
 	if (!text) return null;
 	const fenced = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)?.[1] ?? text;
-	const start = fenced.indexOf('{');
-	const end = fenced.lastIndexOf('}');
-	if (start < 0 || end <= start) return null;
-	try { return JSON.parse(fenced.slice(start, end + 1)); } catch { return null; }
+	const candidates = [fenced.trim()];
+	try {
+		const decoded = JSON.parse(fenced.trim());
+		if (typeof decoded === 'string') candidates.unshift(decoded.trim());
+		else if (decoded && typeof decoded === 'object') return Array.isArray(decoded) ? { recommendations: decoded } : decoded;
+	} catch {
+		// Continuamos con la extracción tolerante de un objeto embebido.
+	}
+	for (const candidateText of candidates) {
+		for (let start = 0; start < candidateText.length; start += 1) {
+			if (candidateText[start] !== '{') continue;
+			let depth = 0;
+			let inString = false;
+			let escaped = false;
+			for (let end = start; end < candidateText.length; end += 1) {
+				const character = candidateText[end];
+				if (inString) {
+					if (escaped) escaped = false;
+					else if (character === '\\') escaped = true;
+					else if (character === '"') inString = false;
+					continue;
+				}
+				if (character === '"') inString = true;
+				else if (character === '{') depth += 1;
+				else if (character === '}') {
+					depth -= 1;
+					if (depth === 0) {
+						try {
+							const parsed = JSON.parse(candidateText.slice(start, end + 1));
+							return Array.isArray(parsed) ? { recommendations: parsed } : parsed;
+						} catch {
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+	return null;
 };
 
 export const validateModelRecommendations = (payload, candidates) => {
