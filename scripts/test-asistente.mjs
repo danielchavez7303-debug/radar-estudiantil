@@ -62,6 +62,13 @@ assert.equal(isPromptInjection('Busco una beca de matemáticas'), false);
 assert.equal(normalizeProfile({}, 'Busco oportunidades gratuitas de programación.').type, null);
 assert.deepEqual(normalizeProfile({}, 'Busco oportunidades gratuitas de programación y matemáticas.').interests, ['Programación', 'Matemáticas']);
 assert.equal(normalizeProfile({}, 'Busco un programa educativo gratuito.').type, 'Programa educativo');
+assert.match(extractModelSummary('RESUMEN: Te conviene empezar por opciones gratuitas.\\nREF 1: Coincide con tu nivel.'), /opciones gratuitas/);
+assert.equal(extractModelSummary('RESUMEN: tipo=Becas | costo=Gratuito'), '');
+assert.equal(sanitizeConversation([{ role: 'user', content: '  ¿Qué requisitos tiene?  ' }, { role: 'system', content: 'no' }]).length, 1);
+assert.match(buildAssistantSummary({ level: 'Preparatoria', state: 'Jalisco', interests: ['programación'], free: true }, ranked.results), /Preparatoria|Jalisco|programación/);
+assert.equal(normalizeProfile({}, 'Busco oportunidades gratuitas de programación.').type, null);
+assert.deepEqual(normalizeProfile({}, 'Busco oportunidades gratuitas de programación y matemáticas.').interests, ['Programación', 'Matemáticas']);
+assert.equal(normalizeProfile({}, 'Busco un programa educativo gratuito.').type, 'Programa educativo');
 assert.match(extractModelSummary('RESUMEN: Te conviene empezar por opciones gratuitas.\nREF 1: Coincide con tu nivel.'), /opciones gratuitas/);
 assert.equal(extractModelSummary('RESUMEN: tipo=Becas | costo=Gratuito'), '');
 assert.equal(sanitizeConversation([{ role: 'user', content: '  ¿Qué requisitos tiene?  ' }, { role: 'system', content: 'no' }]).length, 1);
@@ -76,6 +83,7 @@ const machineReadable = validateModelRecommendations({ recommendations: [{ ref: 
 assert.match(machineReadable[0].reason, /^Buena opción porque/);
 assert.doesNotMatch(machineReadable[0].reason, /tipo=|áreas=|niveles=|costo=/);
 assert.match(buildCompatibilityReason(modelCandidates[0]), /nivel educativo/);
+assert.doesNotMatch(validateModelRecommendations({ recommendations: [{ ref: '1', reason: 'Coincide en 0 de 7 criterios relevantes.' }] }, modelCandidates)[0].reason, /Coincide en 0/);
 assert.doesNotMatch(validateModelRecommendations({ recommendations: [{ ref: '1', reason: 'Coincide en 0 de 7 criterios relevantes.' }] }, modelCandidates)[0].reason, /Coincide en 0/);
 const multiRefCandidates = [
 	{ ...modelCandidates[0], ref: '1' },
@@ -138,8 +146,8 @@ assert.equal(embeddedRefsPayload.recommendations[1].reason, 'Segunda opción');
 
 const chatResponse = await onRequest(makeContext({
 	message: '¿Cuál me conviene más?',
-	profile: { level: 'Preparatoria', state: 'Jalisco', interests: 'programación', free: true },
-	history: [{ role: 'user', content: 'Busco algo gratuito.' }],
+	profile: {},
+	history: [{ role: 'user', content: 'Busco oportunidades gratuitas de programación.' }],
 }, {
 	RATE_LIMITER: allowedBinding,
 	AI: { run: async () => ({ response: 'RESUMEN: Te conviene empezar por una opción gratuita de programación.\nREF 1: Coincide con tu nivel y preferencia de costo.' }) },
@@ -149,6 +157,7 @@ assert.equal(chatResponse.status, 200);
 assert.equal(chatPayload.mode, 'ai');
 assert.match(chatPayload.message, /Te conviene/);
 assert.equal(chatPayload.recommendations.length, 1);
+assert.ok(chatPayload.recommendations[0].compatibilidad.coinciden.includes('Intereses'));
 
 const css = await fs.readFile(new URL('../src/styles/catalog.css', import.meta.url), 'utf8');
 assert.match(css, /@media \(max-width: 480px\)/);
