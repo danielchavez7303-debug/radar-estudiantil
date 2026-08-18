@@ -5,10 +5,13 @@ import {
 	MAX_CANDIDATES_TO_AI,
 	buildSystemPrompt,
 	buildUserPrompt,
+	buildAssistantSummary,
 	candidateForModel,
 	deterministicRecommendation,
 	extractModelText,
+	extractModelSummary,
 	extractModelJson,
+	sanitizeConversation,
 	validateModelRecommendations,
 	validateModelTextRecommendations,
 } from '../../src/lib/radar-assistant.js';
@@ -98,13 +101,13 @@ const readBody = async (request) => {
 	}
 };
 
-const runAi = async (context, profile, results) => {
+	const runAi = async (context, profile, results, history = []) => {
 	if (!context.env?.AI || typeof context.env.AI.run !== 'function') throw new Error('AI_BINDING_UNAVAILABLE');
 	const candidates = results.slice(0, MAX_CANDIDATES_TO_AI).map(candidateForModel);
 	const aiPromise = context.env.AI.run(MODEL_ID, {
 		messages: [
 			{ role: 'system', content: buildSystemPrompt() },
-			{ role: 'user', content: buildUserPrompt(profile, candidates) },
+			{ role: 'user', content: buildUserPrompt(profile, candidates, history) },
 		],
 		max_tokens: 320,
 		temperature: 0.1,
@@ -142,7 +145,7 @@ const runAi = async (context, profile, results) => {
 	if (recommendations.length === 0) throw new Error('AI_NO_VALID_RECOMMENDATIONS');
 	const intro = typeof payload?.intro === 'string' && payload.intro.trim()
 		? payload.intro.trim().slice(0, 500)
-		: 'Estas parecen las opciones más compatibles con tu búsqueda:';
+		: extractModelSummary(modelText) || buildAssistantSummary(profile, recommendations);
 	return {
 		mode: 'ai',
 		explanationAvailable: true,
@@ -161,6 +164,7 @@ export const onRequest = async (context) => {
 	const body = await readBody(context.request);
 	if (!body) return jsonResponse({ message: 'La solicitud no tiene un formato válido.' }, 400);
 	const message = sanitizeMessage(body.message, MAX_MESSAGE_LENGTH);
+	const history = sanitizeConversation(body.history);
 	const rawProfile = body.profile && typeof body.profile === 'object' && !Array.isArray(body.profile) ? body.profile : {};
 	const ranked = rankOpportunities(oportunidades, { ...rawProfile, message }, { limit: MAX_CANDIDATES_TO_AI });
 	if (!hasSearchSignal(ranked.profile, message)) {
@@ -191,7 +195,7 @@ export const onRequest = async (context) => {
 	}
 
 	try {
-		const response = await runAi(context, ranked.profile, ranked.results);
+		const response = await runAi(context, ranked.profile, ranked.results, history);
 		metric(context, 'ai_response');
 		return jsonResponse(response);
 	} catch (error) {
