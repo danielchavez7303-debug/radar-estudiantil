@@ -377,10 +377,25 @@
 }
 
 .assistant-chat-intro {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 0.75rem;
 	margin-bottom: 0.6rem;
 	color: #748379;
 	font-size: 0.68rem;
 	line-height: 1.45;
+}
+
+.assistant-chat-intro strong {
+	color: var(--green);
+	font-size: 0.7rem;
+	font-weight: 850;
+	white-space: nowrap;
+}
+
+.assistant-chat-intro span {
+	text-align: right;
 }
 
 .assistant-chat-log {

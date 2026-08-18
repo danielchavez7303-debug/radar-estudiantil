@@ -166,7 +166,13 @@ export const onRequest = async (context) => {
 	const message = sanitizeMessage(body.message, MAX_MESSAGE_LENGTH);
 	const history = sanitizeConversation(body.history);
 	const rawProfile = body.profile && typeof body.profile === 'object' && !Array.isArray(body.profile) ? body.profile : {};
-	const ranked = rankOpportunities(oportunidades, { ...rawProfile, message }, { limit: MAX_CANDIDATES_TO_AI });
+	const previousStudentMessages = history
+		.filter((entry) => entry.role === 'user')
+		.map((entry) => entry.content)
+		.slice(-2);
+	const hasFollowUpContext = previousStudentMessages.length > 0 && /^[¿?]?(?:y |pero |entonces |cual|cuál|que|qué|como|cómo|por que|por qué|donde|dónde|requisitos|costo|modalidad|cuando|cuándo)/i.test(message);
+	const rankingMessage = hasFollowUpContext ? [...previousStudentMessages, message].join(' ') : message;
+	const ranked = rankOpportunities(oportunidades, { ...rawProfile, message: rankingMessage }, { limit: MAX_CANDIDATES_TO_AI });
 	if (!hasSearchSignal(ranked.profile, message)) {
 		return jsonResponse({ mode: 'needs-profile', explanationAvailable: false, message: 'Cuéntame al menos tu nivel, edad, estado, intereses o el tipo de oportunidad que buscas.', recommendations: [], sourceNote: SOURCE_NOTE }, 400);
 	}

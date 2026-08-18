@@ -212,7 +212,7 @@ const relevanceBase = (oportunidad: (typeof oportunidadesPublicas)[number]) => {
 						</div>
 					</form>
 					<div class="assistant-chat" id="assistant-chat" hidden>
-						<div class="assistant-chat-intro">Puedes hacer una pregunta de seguimiento sobre estas opciones; la conversación se descarta al salir.</div>
+						<div class="assistant-chat-intro"><strong>Chat temporal de Radar</strong><span>Pregunta por requisitos, costo o modalidad. No guardamos esta conversación.</span></div>
 						<div class="assistant-chat-log" id="assistant-chat-log" role="log" aria-live="polite" aria-label="Conversación con Asistente Radar"></div>
 						<div class="assistant-chat-suggestions" id="assistant-chat-suggestions" aria-label="Preguntas rápidas">
 							<button type="button" data-assistant-suggestion="¿Cuál de estas opciones parece más adecuada para mi situación?">¿Cuál me conviene más?</button>
@@ -785,7 +785,9 @@ const relevanceBase = (oportunidad: (typeof oportunidadesPublicas)[number]) => {
 				assistantRecommendations.append(item);
 			});
 			assistantResults.hidden = false;
-			if (assistantResultsTitle) assistantResultsTitle.textContent = payload.message || 'Estas parecen tus mejores opciones.';
+			if (assistantResultsTitle) assistantResultsTitle.textContent = payload.mode === 'ai' && payload.message
+				? payload.message
+				: 'Estas son las opciones que mejor encajan con tu búsqueda.';
 			if (assistantSourceNote) assistantSourceNote.textContent = payload.sourceNote || 'Confirma siempre los datos en la fuente oficial.';
 		};
 
@@ -822,13 +824,13 @@ const relevanceBase = (oportunidad: (typeof oportunidadesPublicas)[number]) => {
 					slug: card.dataset.slug,
 					titulo: card.dataset.titulo,
 					url: `/oportunidades/${encodeURIComponent(card.dataset.slug ?? '')}`,
-					reason: 'Aparece entre las oportunidades mejor posicionadas por el catálogo de Radar.',
+					reason: 'Está activa y disponible en el catálogo; revisa sus requisitos en la ficha.',
 					compatibilidad: { desconocidos: ['Perfil no disponible temporalmente'] },
 				}));
 			return {
 				mode: 'fallback',
 				recommendations: fallbackRecommendations,
-				message: 'La explicación con IA no está disponible temporalmente. Estas son las mejores oportunidades del catálogo.',
+				message: 'Encontré estas opciones verificadas con el ranking local del catálogo.',
 				sourceNote: 'Puedes seguir explorando con los filtros normales. Confirma siempre los datos en la fuente oficial.',
 			};
 		};
