@@ -104,14 +104,15 @@ const runAi = async (context, profile, results) => {
 			{ role: 'system', content: buildSystemPrompt() },
 			{ role: 'user', content: buildUserPrompt(profile, candidates) },
 		],
-		max_tokens: 280,
-		temperature: 0.2,
+		max_tokens: 420,
+		temperature: 0.1,
 		top_p: 0.85,
+		response_format: { type: 'json_object' },
 	});
 	const result = await Promise.race([aiPromise, wait(AI_TIMEOUT_MS).then(() => { throw new Error('AI_TIMEOUT'); })]);
 	const payload = extractModelJson(result);
 	const recommendations = validateModelRecommendations(payload, candidates);
-	if (!payload || recommendations.length < Math.min(3, candidates.length)) throw new Error('AI_INVALID_RESPONSE');
+	if (!payload || recommendations.length === 0) throw new Error('AI_INVALID_RESPONSE');
 	return {
 		mode: 'ai',
 		explanationAvailable: true,

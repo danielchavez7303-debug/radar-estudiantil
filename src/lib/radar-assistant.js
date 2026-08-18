@@ -59,7 +59,8 @@ export const buildUserPrompt = (profile, candidates) => JSON.stringify({
 
 export const extractModelJson = (value) => {
 	if (!value) return null;
-	const text = typeof value === 'string' ? value : value.response ?? value.text ?? '';
+	const raw = typeof value === 'string' ? value : value.response ?? value.text ?? '';
+	const text = typeof raw === 'string' ? raw : raw?.response ?? raw?.text ?? '';
 	if (!text) return null;
 	const fenced = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)?.[1] ?? text;
 	const start = fenced.indexOf('{');
