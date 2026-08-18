@@ -163,7 +163,9 @@ export const onRequest = async (context) => {
 		const response = await runAi(context, ranked.profile, ranked.results);
 		metric(context, 'ai_response');
 		return jsonResponse(response);
-	} catch {
+	} catch (error) {
+		const reason = error instanceof Error ? error.message : String(error);
+		console.error('Asistente Radar AI fallback:', reason.slice(0, 160));
 		metric(context, 'fallback');
 		return jsonResponse(buildFallbackPayload(ranked));
 	}
