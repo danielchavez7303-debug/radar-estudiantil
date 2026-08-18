@@ -51,6 +51,49 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 	]
 		.join(' ')
 		.toLocaleLowerCase('es-MX');
+const normalizeForRelevance = (value: string) =>
+	value.toLocaleLowerCase('es-MX').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const relevanceBase = (oportunidad: (typeof oportunidadesPublicas)[number]) => {
+	const searchable = normalizeForRelevance(
+		[
+			oportunidad.titulo,
+			oportunidad.organizacion,
+			oportunidad.descripcion,
+			oportunidad.cobertura,
+			...oportunidad.niveles,
+			...oportunidad.estados,
+		].join(' '),
+	);
+	const statusScore: Record<string, number> = {
+		activa: 120,
+		permanente: 100,
+		proxima: 80,
+		enProceso: 48,
+		resultados: 28,
+		cerrada: -35,
+		finalizada: -60,
+	};
+	const categoryScore: Record<string, number> = {
+		Becas: 30,
+		'Beneficio estudiantil': 18,
+		'Programa educativo': 12,
+		Cursos: 12,
+		'Recurso gratuito': 10,
+		Competencias: 6,
+	};
+	let score = statusScore[oportunidad.estado] ?? 0;
+	score += categoryScore[oportunidad.categoria] ?? 0;
+	if (oportunidad.cobertura === 'México' || oportunidad.estados.includes('Nacional')) score += 28;
+	if (oportunidad.modalidad.toLocaleLowerCase('es-MX').includes('en línea')) score += 10;
+	if (oportunidad.costo.toLocaleLowerCase('es-MX').includes('gratuito')) score += 8;
+	score += Math.min(oportunidad.niveles.length, 4) * 4;
+	if (!oportunidad.edadMinima) score += 3;
+	if (!oportunidad.edadMaxima) score += 3;
+	if (oportunidad.requiereTutor) score -= 2;
+	const highReachPrograms = ['rita cetina', 'benito juarez', 'benito juárez', 'jovenes escribiendo el futuro', 'jóvenes escribiendo el futuro', 'beca universal'];
+	if (highReachPrograms.some((program) => searchable.includes(normalizeForRelevance(program)))) score += 90;
+	return score;
+};
 ---
 
 <BaseLayout
@@ -98,6 +141,99 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 					</a>
 				</div>
 			</nav>
+
+			<section class="assistant-radar" aria-labelledby="assistant-radar-title">
+				<div class="assistant-radar-head">
+					<div>
+						<p class="eyebrow">✨ Asistente Radar</p>
+						<h2 id="assistant-radar-title">Encuentra opciones que encajen contigo.</h2>
+						<p>Usa las oportunidades verificadas del catálogo. No necesitas crear una cuenta.</p>
+					</div>
+					<button class="assistant-radar-toggle" id="assistant-toggle" type="button" aria-expanded="false" aria-controls="assistant-panel">Abrir asistente <span aria-hidden="true">↗</span></button>
+				</div>
+				<div class="assistant-radar-panel" id="assistant-panel" hidden>
+					<form id="assistant-form" class="assistant-form">
+						<div class="assistant-form-grid">
+							<label>
+								<span>Nivel educativo</span>
+								<select name="level">
+									<option value="">No estoy seguro</option>
+									<option value="Preescolar">Preescolar</option>
+									<option value="Primaria">Primaria</option>
+									<option value="Secundaria">Secundaria</option>
+									<option value="Preparatoria">Preparatoria</option>
+									<option value="Universidad">Universidad</option>
+									<option value="Posgrado">Posgrado</option>
+								</select>
+							</label>
+							<label>
+								<span>Edad <small>(opcional)</small></span>
+								<input name="age" type="number" min="5" max="100" inputmode="numeric" placeholder="Ej. 16" />
+							</label>
+							<label>
+								<span>Estado</span>
+								<select name="state">
+									<option value="">Todo México</option>
+									{entidadesFederativas.map((estado) => <option value={estado}>{estado}</option>)}
+								</select>
+							</label>
+							<label>
+								<span>Tipo</span>
+								<select name="type">
+									<option value="">Cualquier tipo</option>
+									{tipos.map((tipo) => <option value={tipo}>{tipo}</option>)}
+								</select>
+							</label>
+							<label>
+								<span>Modalidad</span>
+								<select name="modality">
+									<option value="">Cualquiera</option>
+									<option value="online">En línea</option>
+									<option value="presencial">Presencial</option>
+									<option value="hibrida">Híbrida o mixta</option>
+								</select>
+							</label>
+							<label class="assistant-checkbox">
+								<input name="free" type="checkbox" value="true" />
+								<span>Necesito que sea gratuito</span>
+							</label>
+						</div>
+						<label class="assistant-wide-field">
+							<span>Intereses <small>(opcional)</small></span>
+							<input name="interests" type="text" maxlength="180" placeholder="Ej. matemáticas, programación, arte" />
+						</label>
+						<label class="assistant-wide-field">
+							<span>Escribe tu pregunta <small>(opcional)</small></span>
+							<textarea name="message" rows="2" maxlength="800" placeholder="Ej. Busco una beca gratuita de programación… o ¿cuál de estas opciones me conviene más?"></textarea>
+						</label>
+						<div class="assistant-form-actions">
+							<p>Procesamos estos datos solo durante la búsqueda; no guardamos tu perfil ni la conversación.</p>
+							<button class="assistant-submit" type="submit">Enviar a Radar <span aria-hidden="true">→</span></button>
+						</div>
+					</form>
+					<div class="assistant-chat" id="assistant-chat" hidden>
+						<div class="assistant-chat-intro">Puedes hacer una pregunta de seguimiento sobre estas opciones; la conversación se descarta al salir.</div>
+						<div class="assistant-chat-log" id="assistant-chat-log" role="log" aria-live="polite" aria-label="Conversación con Asistente Radar"></div>
+						<div class="assistant-chat-suggestions" id="assistant-chat-suggestions" aria-label="Preguntas rápidas">
+							<button type="button" data-assistant-suggestion="¿Cuál de estas opciones parece más adecuada para mi situación?">¿Cuál me conviene más?</button>
+							<button type="button" data-assistant-suggestion="¿Qué requisitos debo revisar primero?">¿Qué requisitos reviso?</button>
+							<button type="button" data-assistant-suggestion="¿Cuál es gratuita y cómo funciona su modalidad?">Costo y modalidad</button>
+						</div>
+					</div>
+					<div class="assistant-status" id="assistant-status" role="status" aria-live="polite" hidden></div>
+					<div class="assistant-results" id="assistant-results" aria-live="polite" hidden>
+						<div class="assistant-results-head">
+							<div>
+								<p class="eyebrow">Resultado Radar</p>
+								<h3 id="assistant-results-title">Estas parecen tus mejores opciones.</h3>
+							</div>
+							<button class="assistant-reset" id="assistant-reset" type="button">Nueva búsqueda</button>
+						</div>
+						<ol class="assistant-recommendations" id="assistant-recommendations"></ol>
+						<p class="assistant-source-note" id="assistant-source-note"></p>
+					</div>
+				</div>
+			</section>
 			<div class="catalog-toolbar">
 				<div class="catalog-toolbar-head">
 					<div class="catalog-search-wrap" role="search">
@@ -185,7 +321,7 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 					<label class="catalog-sort">
 						<span>Ordenar por</span>
 						<select id="ordenar">
-							<option value="relevancia">Relevancia</option>
+							<option value="relevancia">Más relevantes</option>
 							<option value="az">A–Z</option>
 							<option value="verificadas">Recién verificadas</option>
 							<option value="cierre">Cierran primero</option>
@@ -209,11 +345,15 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 							data-organizacion={oportunidad.organizacion}
 							data-estado={oportunidad.estado}
 							data-costo={oportunidad.costo}
+							data-modalidad={oportunidad.modalidad}
+							data-edad-minima={oportunidad.edadMinima ?? ''}
+							data-edad-maxima={oportunidad.edadMaxima ?? ''}
 							data-index={index}
 							data-titulo={oportunidad.titulo}
 							data-slug={oportunidad.slug}
 							data-cierre={oportunidad.fechaCierre ?? ''}
 							data-verificacion={oportunidad.ultimaVerificacion ?? ''}
+							data-base-score={relevanceBase(oportunidad)}
 						>
 							<button class="favorite-button" data-favorite-button type="button" aria-pressed="false" aria-label={`Guardar ${oportunidad.titulo}`}>
 								<span class="favorite-icon" aria-hidden="true">♡</span><span class="favorite-button-label">Guardar</span>
@@ -415,7 +555,8 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 		};
 
 		const relevanceScore = (card: HTMLElement, query: string) => {
-			if (!query) return 0;
+			const baseScore = Number(card.dataset.baseScore ?? 0);
+			if (!query) return baseScore;
 			const title = normalize(card.dataset.titulo ?? '');
 			const type = normalize(card.dataset.tipo ?? '');
 			const areas = normalize((card.dataset.area ?? '').replaceAll('|', ' '));
@@ -424,17 +565,17 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 			const searchable = normalize(card.dataset.search ?? '');
 			return query.split(/\s+/).filter(Boolean).reduce((total, token) => {
 				let score = 0;
-				if (title === token) score += 120;
-				else if (title.startsWith(token)) score += 85;
-				else if (title.includes(token)) score += 65;
-				if (type === token) score += 42;
-				else if (type.includes(token)) score += 30;
-				if (areas.includes(token)) score += 30;
-				if (levels.includes(token)) score += 22;
-				if (organization.includes(token)) score += 18;
-				if (searchable.includes(token)) score += 5;
+				if (title === token) score += 160;
+				else if (title.startsWith(token)) score += 110;
+				else if (title.includes(token)) score += 80;
+				if (type === token) score += 55;
+				else if (type.includes(token)) score += 38;
+				if (areas.includes(token)) score += 35;
+				if (levels.includes(token)) score += 28;
+				if (organization.includes(token)) score += 24;
+				if (searchable.includes(token)) score += 7;
 				return total + score;
-			}, 0);
+			}, baseScore);
 		};
 
 		const showCatalogError = () => {
@@ -554,4 +695,218 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 			loadingState?.setAttribute('hidden', '');
 		});
 	</script>
+
+	<script>
+		const assistantToggle = document.querySelector<HTMLButtonElement>('#assistant-toggle');
+		const assistantPanel = document.querySelector<HTMLElement>('#assistant-panel');
+		const assistantForm = document.querySelector<HTMLFormElement>('#assistant-form');
+		const assistantStatus = document.querySelector<HTMLElement>('#assistant-status');
+		const assistantResults = document.querySelector<HTMLElement>('#assistant-results');
+		const assistantResultsTitle = document.querySelector<HTMLElement>('#assistant-results-title');
+		const assistantRecommendations = document.querySelector<HTMLOListElement>('#assistant-recommendations');
+		const assistantSourceNote = document.querySelector<HTMLElement>('#assistant-source-note');
+		const assistantReset = document.querySelector<HTMLButtonElement>('#assistant-reset');
+		const assistantMessageField = assistantForm?.querySelector<HTMLTextAreaElement>('textarea[name="message"]');
+		const assistantChat = document.querySelector<HTMLElement>('#assistant-chat');
+		const assistantChatLog = document.querySelector<HTMLElement>('#assistant-chat-log');
+		const assistantSuggestions = document.querySelector<HTMLElement>('#assistant-chat-suggestions');
+		const assistantEndpoint = '/api/asistente';
+		let assistantConversation: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+
+		const setAssistantStatus = (message, tone = 'info') => {
+			if (!assistantStatus) return;
+			assistantStatus.textContent = message;
+			assistantStatus.dataset.tone = tone;
+			assistantStatus.hidden = !message;
+		};
+
+		const appendAssistantMessage = (role: 'user' | 'assistant', text: string) => {
+			if (!assistantChat || !assistantChatLog || !text) return;
+			assistantChat.hidden = false;
+			const bubble = document.createElement('div');
+			bubble.className = `assistant-chat-message is-${role}`;
+			bubble.textContent = text;
+			if (role === 'assistant') bubble.setAttribute('role', 'status');
+			assistantChatLog.append(bubble);
+			assistantChatLog.scrollTop = assistantChatLog.scrollHeight;
+		};
+
+		const assistantReplyText = (payload) => {
+			const recommendations = (payload.recommendations ?? []).slice(0, 3).map((recommendation) => `${recommendation.titulo}: ${recommendation.reason}`).join('\n');
+			return [payload.message, recommendations].filter(Boolean).join('\n');
+		};
+
+		const createCriteria = (compatibility = {}) => {
+			const criteria = document.createElement('div');
+			criteria.className = 'assistant-criteria';
+			const add = (items, className, prefix) => {
+				(items ?? []).forEach((item) => {
+					const chip = document.createElement('span');
+					chip.className = className;
+					chip.textContent = `${prefix} ${item}`;
+					criteria.append(chip);
+				});
+			};
+			add(compatibility.coinciden, 'is-match', '✓');
+			add(compatibility.noCoinciden, 'is-mismatch', '−');
+			add(compatibility.desconocidos, 'is-unknown', '?');
+			return criteria.childElementCount ? criteria : null;
+		};
+
+		const renderAssistantRecommendations = (payload) => {
+			if (!assistantRecommendations || !assistantResults) return;
+			assistantRecommendations.replaceChildren();
+			(payload.recommendations ?? []).forEach((recommendation) => {
+				const item = document.createElement('li');
+				const body = document.createElement('div');
+				const title = document.createElement('a');
+				title.className = 'assistant-recommendation-title';
+				title.href = recommendation.url || `/oportunidades/${encodeURIComponent(recommendation.slug ?? '')}`;
+				title.textContent = recommendation.titulo || 'Oportunidad';
+				body.append(title);
+				const reason = document.createElement('p');
+				reason.className = 'assistant-recommendation-reason';
+				reason.textContent = recommendation.reason || recommendation.compatibilidad?.resumen || 'Coincidencia encontrada por Radar.';
+				body.append(reason);
+				const criteria = createCriteria(recommendation.compatibilidad);
+				if (criteria) body.append(criteria);
+				if (recommendation.warning) {
+					const warning = document.createElement('p');
+					warning.className = 'assistant-recommendation-warning';
+					warning.textContent = `Aviso: ${recommendation.warning}`;
+					body.append(warning);
+				}
+				const link = document.createElement('a');
+				link.className = 'assistant-recommendation-link';
+				link.href = title.href;
+				link.textContent = 'Ver ficha completa ↗';
+				body.append(link);
+				item.append(body);
+				assistantRecommendations.append(item);
+			});
+			assistantResults.hidden = false;
+			if (assistantResultsTitle) assistantResultsTitle.textContent = payload.message || 'Estas parecen tus mejores opciones.';
+			if (assistantSourceNote) assistantSourceNote.textContent = payload.sourceNote || 'Confirma siempre los datos en la fuente oficial.';
+		};
+
+		const clientFallback = (profile = {}) => {
+			const normalizeAssistant = (value) => String(value ?? '').toLocaleLowerCase('es-MX').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+			const wantedLevel = normalizeAssistant(profile.level);
+			const wantedState = normalizeAssistant(profile.state);
+			const wantedInterests = normalizeAssistant(profile.interests);
+			const wantedType = normalizeAssistant(profile.type);
+			const wantedModality = normalizeAssistant(profile.modality);
+			const wantedAge = String(profile.age ?? '').trim() ? Number(profile.age) : null;
+			const fallbackRecommendations = [...document.querySelectorAll<HTMLElement>('[data-opportunity]')]
+				.filter((card) => {
+					const status = card.dataset.estado ?? '';
+					if (status === 'cerrada' || status === 'finalizada' || status === 'resultados') return false;
+					const levels = normalizeAssistant(card.dataset.nivel).replaceAll('|', ' ');
+					const locations = normalizeAssistant(card.dataset.ubicacion).replaceAll('|', ' ');
+					const cost = normalizeAssistant(card.dataset.costo);
+					const modality = normalizeAssistant(card.dataset.modalidad);
+					const minimumAge = card.dataset.edadMinima ? Number(card.dataset.edadMinima) : null;
+					const maximumAge = card.dataset.edadMaxima ? Number(card.dataset.edadMaxima) : null;
+					const stateMatch = !wantedState || locations.includes(wantedState) || locations.includes('nacional') || normalizeAssistant(card.dataset.search).includes('mexico');
+					const levelMatch = !wantedLevel || levels.includes(wantedLevel) || (wantedLevel.includes('preparatoria') && levels.includes('bachillerato')) || (wantedLevel.includes('bachillerato') && levels.includes('preparatoria')) || levels.includes('todos los niveles');
+					const interestMatch = !wantedInterests || normalizeAssistant(card.dataset.search).split(/[,;\s]+/).some((token) => token && wantedInterests.includes(token));
+					const freeMatch = !profile.free || cost.includes('gratuito') || cost.includes('gratis') || cost.includes('sin costo') || cost.includes('sin cuota');
+					const typeMatch = !wantedType || normalizeAssistant(card.dataset.tipo).includes(wantedType);
+					const modalityMatch = !wantedModality || (wantedModality === 'online' ? /en linea|autodirigida|descargable/.test(modality) : wantedModality === 'presencial' ? /presencial|plantel|clase/.test(modality) : /hibrida|mixta/.test(modality));
+					const ageMatch = !Number.isInteger(wantedAge) || ((minimumAge === null || !Number.isFinite(minimumAge) || wantedAge >= minimumAge) && (maximumAge === null || !Number.isFinite(maximumAge) || wantedAge <= maximumAge));
+					return stateMatch && levelMatch && interestMatch && freeMatch && typeMatch && modalityMatch && ageMatch;
+				})
+				.sort((a, b) => Number(b.dataset.baseScore ?? 0) - Number(a.dataset.baseScore ?? 0))
+				.slice(0, 5)
+				.map((card) => ({
+					slug: card.dataset.slug,
+					titulo: card.dataset.titulo,
+					url: `/oportunidades/${encodeURIComponent(card.dataset.slug ?? '')}`,
+					reason: 'Aparece entre las oportunidades mejor posicionadas por el catálogo de Radar.',
+					compatibilidad: { desconocidos: ['Perfil no disponible temporalmente'] },
+				}));
+			return {
+				mode: 'fallback',
+				recommendations: fallbackRecommendations,
+				message: 'La explicación con IA no está disponible temporalmente. Estas son las mejores oportunidades del catálogo.',
+				sourceNote: 'Puedes seguir explorando con los filtros normales. Confirma siempre los datos en la fuente oficial.',
+			};
+		};
+
+		assistantToggle?.addEventListener('click', () => {
+			if (!assistantPanel) return;
+			const open = assistantPanel.hidden;
+			assistantPanel.hidden = !open;
+			assistantToggle.setAttribute('aria-expanded', String(open));
+			assistantToggle.innerHTML = open ? 'Cerrar asistente <span aria-hidden="true">×</span>' : 'Abrir asistente <span aria-hidden="true">↗</span>';
+			if (open) assistantMessageField?.focus();
+		});
+
+		assistantSuggestions?.addEventListener('click', (event) => {
+			const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-assistant-suggestion]');
+			if (!button || !assistantMessageField) return;
+			assistantMessageField.value = button.dataset.assistantSuggestion ?? '';
+			assistantMessageField.focus();
+		});
+
+		assistantForm?.addEventListener('submit', async (event) => {
+			event.preventDefault();
+			const submit = assistantForm.querySelector<HTMLButtonElement>('button[type="submit"]');
+			if (submit) submit.disabled = true;
+			setAssistantStatus('Revisando requisitos y ordenando oportunidades verificadas…');
+			const formData = new FormData(assistantForm);
+			const message = String(formData.get('message') ?? '').trim();
+			const previousConversation = assistantConversation.slice(-6);
+			if (message) {
+				appendAssistantMessage('user', message);
+				assistantConversation = [...assistantConversation, { role: 'user', content: message }].slice(-6);
+			}
+			const profile = {
+				level: String(formData.get('level') ?? ''),
+				age: String(formData.get('age') ?? ''),
+				state: String(formData.get('state') ?? ''),
+				interests: String(formData.get('interests') ?? ''),
+				type: String(formData.get('type') ?? ''),
+				modality: String(formData.get('modality') ?? ''),
+				free: formData.get('free') === 'true',
+			};
+			try {
+				const response = await fetch(assistantEndpoint, {
+					method: 'POST',
+					headers: { 'content-type': 'application/json' },
+					body: JSON.stringify({ message, profile, history: previousConversation }),
+				});
+				const payload = await response.json();
+				if (!response.ok && payload.mode !== 'rate-limit') throw new Error(payload.message || 'No se pudo completar la búsqueda.');
+				const reply = assistantReplyText(payload);
+				if (reply) {
+					appendAssistantMessage('assistant', reply);
+					assistantConversation = [...assistantConversation, { role: 'assistant', content: reply }].slice(-6);
+				}
+				renderAssistantRecommendations(payload);
+				setAssistantStatus(payload.mode === 'ai' ? 'Explicación generada usando únicamente las candidatas de Radar.' : payload.message, payload.mode === 'ai' ? 'success' : 'fallback');
+			} catch {
+				const payload = clientFallback(profile);
+				const reply = assistantReplyText(payload);
+				if (reply) {
+					appendAssistantMessage('assistant', reply);
+					assistantConversation = [...assistantConversation, { role: 'assistant', content: reply }].slice(-6);
+				}
+				renderAssistantRecommendations(payload);
+				setAssistantStatus('No pudimos conectar con el Asistente Radar. Mostramos el ranking local del catálogo; puedes seguir usando los filtros.', 'fallback');
+			}
+			if (submit) submit.disabled = false;
+		});
+
+		assistantReset?.addEventListener('click', () => {
+			assistantForm?.reset();
+			assistantConversation = [];
+			assistantChatLog?.replaceChildren();
+			if (assistantChat) assistantChat.hidden = true;
+			if (assistantResults) assistantResults.hidden = true;
+			setAssistantStatus('');
+			assistantMessageField?.focus();
+		});
+	</script>
 </BaseLayout>
+
