@@ -65,6 +65,14 @@ assert.equal(validateModelRecommendations({ recommendations: [{ slug: 'inventado
 assert.equal(validateModelRecommendations({ recommendations: [{ slug: 'compatible', reason: 'Coincide con tu nivel' }] }, modelCandidates).length, 1);
 assert.equal(validateModelRecommendations({ recommendations: [{ ref: '1', reason: 'Coincide con tu nivel' }] }, modelCandidates).length, 1);
 assert.equal(validateModelTextRecommendations('REF 1: Coincide con tu nivel', modelCandidates).length, 1);
+const multiRefCandidates = [
+	{ ...modelCandidates[0], ref: '1' },
+	{ ...modelCandidates[0], slug: 'segunda', titulo: 'Segunda oportunidad', ref: '2' },
+];
+const multiRefRecommendations = validateModelTextRecommendations('REF 1: Coincide con tu nivel REF 2: También encaja', multiRefCandidates);
+assert.equal(multiRefRecommendations.length, 2);
+assert.equal(multiRefRecommendations[0].reason, 'Coincide con tu nivel');
+assert.equal(multiRefRecommendations[1].reason, 'También encaja');
 
 const makeContext = (body, env = {}) => ({
 	request: new Request('https://radar.test/api/asistente', {
@@ -104,6 +112,17 @@ const invalidAiResponse = await onRequest(makeContext({ message: 'Busco cursos g
 const invalidAiPayload = await invalidAiResponse.json();
 assert.equal(invalidAiResponse.status, 200);
 assert.equal(invalidAiPayload.mode, 'fallback');
+
+const embeddedRefsResponse = await onRequest(makeContext({ message: 'Busco oportunidades educativas.', profile: {} }, {
+	RATE_LIMITER: allowedBinding,
+	AI: { run: async () => ({ response: JSON.stringify({ recommendations: [{ ref: 1, reason: 'Primera opción | REF 2: Segunda opción' }] }) }) },
+}));
+const embeddedRefsPayload = await embeddedRefsResponse.json();
+assert.equal(embeddedRefsResponse.status, 200);
+assert.equal(embeddedRefsPayload.mode, 'ai');
+assert.equal(embeddedRefsPayload.recommendations.length, 2);
+assert.equal(embeddedRefsPayload.recommendations[0].reason, 'Primera opción');
+assert.equal(embeddedRefsPayload.recommendations[1].reason, 'Segunda opción');
 
 const css = await fs.readFile(new URL('../src/styles/catalog.css', import.meta.url), 'utf8');
 assert.match(css, /@media \(max-width: 480px\)/);
