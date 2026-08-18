@@ -519,16 +519,22 @@ const relevanceBase = catalogRelevanceBase;
 		const sortCards = () => {
 			if (!grid || !sortSelect) return;
 			const sorted = [...cards].sort((a, b) => {
-				if (sortSelect.value === 'az') return (a.dataset.titulo ?? '').localeCompare(b.dataset.titulo ?? '', 'es');
-				if (sortSelect.value === 'verificadas') return (b.dataset.verificacion ?? '').localeCompare(a.dataset.verificacion ?? '');
+				if (sortSelect.value === 'az') return (a.dataset.titulo ?? '').localeCompare(b.dataset.titulo ?? '', 'es-MX');
+				if (sortSelect.value === 'verificadas') {
+					const verificationDifference = (b.dataset.verificacion ?? '').localeCompare(a.dataset.verificacion ?? '');
+					return verificationDifference || (a.dataset.titulo ?? '').localeCompare(b.dataset.titulo ?? '', 'es-MX');
+				}
 				if (sortSelect.value === 'cierre') {
+					const aClosed = ['cerrada', 'finalizada', 'resultados'].includes(a.dataset.estado ?? '');
+					const bClosed = ['cerrada', 'finalizada', 'resultados'].includes(b.dataset.estado ?? '');
+					if (aClosed !== bClosed) return aClosed ? 1 : -1;
 					const aDate = a.dataset.cierre ? Date.parse(a.dataset.cierre) : Number.POSITIVE_INFINITY;
 					const bDate = b.dataset.cierre ? Date.parse(b.dataset.cierre) : Number.POSITIVE_INFINITY;
-					return aDate - bDate;
+					return (aDate - bDate) || (a.dataset.titulo ?? '').localeCompare(b.dataset.titulo ?? '', 'es-MX');
 				}
 				const scoreDifference = Number(b.dataset.score ?? 0) - Number(a.dataset.score ?? 0);
 				if (scoreDifference !== 0) return scoreDifference;
-				return Number(a.dataset.index ?? 0) - Number(b.dataset.index ?? 0);
+				return (a.dataset.titulo ?? '').localeCompare(b.dataset.titulo ?? '', 'es-MX');
 			});
 			sorted.forEach((card) => grid.append(card));
 		};
