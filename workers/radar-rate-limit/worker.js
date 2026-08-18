@@ -50,9 +50,9 @@ export class RadarRateLimit extends DurableObject {
 
 		const burst = this.consume(`${identifier}:burst`, now, 3, 60_000);
 		if (!burst.allowed) return Response.json({ allowed: false, reason: 'burst', retryAt: burst.expiresAt });
-		const hourly = this.consume(`${identifier}:hour`, now, 10, 3_600_000);
-		if (!hourly.allowed) return Response.json({ allowed: false, reason: 'hourly', retryAt: hourly.expiresAt });
-		return Response.json({ allowed: true, remaining: hourly.remaining });
+		// El límite horario queda desactivado temporalmente para permitir las
+		// pruebas y el uso inicial. Conservamos el freno de ráfagas de 3/min.
+		return Response.json({ allowed: true, remaining: null });
 	}
 }
 
@@ -61,3 +61,4 @@ export default {
 		return new Response('Radar Estudiantil rate limit worker', { status: 200 });
 	},
 };
+
