@@ -124,8 +124,15 @@ const extractLevel = (message) => {
 };
 
 const extractType = (message) => {
+	const normalizedMessage = normalizeText(message);
+	const containsAlias = (alias) => {
+		const normalizedAlias = normalizeText(alias);
+		if (!normalizedAlias) return false;
+		const escapedAlias = normalizedAlias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+		return new RegExp(`(?:^|\\s)${escapedAlias}(?:$|\\s|[,.;:!?])`, 'i').test(normalizedMessage);
+	};
 	for (const [type, aliases] of Object.entries(TYPE_ALIASES)) {
-		if (aliases.some((alias) => normalizeText(message).includes(normalizeText(alias)))) return type;
+		if (aliases.some(containsAlias)) return type;
 	}
 	return null;
 };
@@ -298,3 +305,4 @@ export const summarizeMatch = (result) => {
 };
 
 export const hardCompatibilityForTest = hardCompatibility;
+
