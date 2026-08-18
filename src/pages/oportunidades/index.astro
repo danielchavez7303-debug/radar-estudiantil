@@ -713,8 +713,12 @@ const relevanceBase = catalogRelevanceBase;
 	</script>
 
 	<script>
+		const assistantRoot = document.querySelector<HTMLElement>('.assistant-radar');
 		const assistantToggle = document.querySelector<HTMLButtonElement>('#assistant-toggle');
 		const assistantPanel = document.querySelector<HTMLElement>('#assistant-panel');
+		const assistantBackdrop = document.querySelector<HTMLElement>('#assistant-backdrop');
+		const assistantClose = document.querySelector<HTMLButtonElement>('#assistant-close');
+		const assistantFilterLink = document.querySelector<HTMLButtonElement>('#assistant-filter-link');
 		const assistantForm = document.querySelector<HTMLFormElement>('#assistant-form');
 		const assistantStatus = document.querySelector<HTMLElement>('#assistant-status');
 		const assistantResults = document.querySelector<HTMLElement>('#assistant-results');
@@ -728,6 +732,7 @@ const relevanceBase = catalogRelevanceBase;
 		const assistantSuggestions = document.querySelector<HTMLElement>('#assistant-chat-suggestions');
 		const assistantEndpoint = '/api/asistente';
 		let assistantConversation: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+		let assistantWelcomeShown = false;
 
 		const setAssistantStatus = (message, tone = 'info') => {
 			if (!assistantStatus) return;
@@ -747,10 +752,8 @@ const relevanceBase = catalogRelevanceBase;
 			assistantChatLog.scrollTop = assistantChatLog.scrollHeight;
 		};
 
-		const assistantReplyText = (payload) => {
-			const recommendations = (payload.recommendations ?? []).slice(0, 3).map((recommendation) => `${recommendation.titulo}: ${recommendation.reason}`).join('\n');
-			return [payload.message, recommendations].filter(Boolean).join('\n');
-		};
+		const assistantReplyText = (payload) => payload.message
+			|| 'Encontré opciones verificadas en Radar. Revisa las fichas y sus requisitos antes de postularte.';
 
 		const createCriteria = (compatibility = {}) => {
 			const criteria = document.createElement('div');
@@ -851,13 +854,48 @@ const relevanceBase = catalogRelevanceBase;
 			};
 		};
 
-		assistantToggle?.addEventListener('click', () => {
+		const showAssistantWelcome = () => {
+			if (assistantWelcomeShown || !assistantChatLog) return;
+			assistantWelcomeShown = true;
+			appendAssistantMessage('assistant', 'Hola. Soy el Asistente Radar. Dime tu nivel, estado, intereses y si necesitas algo gratuito; te recomendaré fichas concretas.');
+		};
+
+		const openAssistant = () => {
 			if (!assistantPanel) return;
-			const open = assistantPanel.hidden;
-			assistantPanel.hidden = !open;
-			assistantToggle.setAttribute('aria-expanded', String(open));
-			assistantToggle.innerHTML = open ? 'Cerrar asistente <span aria-hidden="true">×</span>' : 'Abrir asistente <span aria-hidden="true">↗</span>';
-			if (open) assistantMessageField?.focus();
+			assistantPanel.hidden = false;
+			if (assistantBackdrop) assistantBackdrop.hidden = false;
+			assistantRoot?.classList.add('is-open');
+			document.body.classList.add('assistant-open');
+			assistantToggle?.setAttribute('aria-expanded', 'true');
+			if (assistantToggle) assistantToggle.innerHTML = 'Cerrar asistente <span aria-hidden="true">×</span>';
+			showAssistantWelcome();
+			window.setTimeout(() => assistantMessageField?.focus(), 40);
+		};
+
+		const closeAssistant = () => {
+			if (!assistantPanel) return;
+			assistantPanel.hidden = true;
+			if (assistantBackdrop) assistantBackdrop.hidden = true;
+			assistantRoot?.classList.remove('is-open');
+			document.body.classList.remove('assistant-open');
+			assistantToggle?.setAttribute('aria-expanded', 'false');
+			if (assistantToggle) assistantToggle.innerHTML = '✨ Abrir Asistente Radar <span aria-hidden="true">↗</span>';
+			assistantToggle?.focus();
+		};
+
+		assistantToggle?.addEventListener('click', () => {
+			if (assistantPanel?.hidden) openAssistant();
+			else closeAssistant();
+		});
+		assistantClose?.addEventListener('click', closeAssistant);
+		assistantBackdrop?.addEventListener('click', closeAssistant);
+		assistantFilterLink?.addEventListener('click', () => {
+			closeAssistant();
+			document.querySelector('#busqueda')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+			document.querySelector<HTMLInputElement>('#busqueda')?.focus();
+		});
+		document.addEventListener('keydown', (event) => {
+			if (event.key === 'Escape' && assistantPanel && !assistantPanel.hidden) closeAssistant();
 		});
 
 		assistantSuggestions?.addEventListener('click', (event) => {
@@ -919,10 +957,12 @@ const relevanceBase = catalogRelevanceBase;
 		assistantReset?.addEventListener('click', () => {
 			assistantForm?.reset();
 			assistantConversation = [];
+			assistantWelcomeShown = false;
 			assistantChatLog?.replaceChildren();
-			if (assistantChat) assistantChat.hidden = true;
+			if (assistantChat) assistantChat.hidden = false;
 			if (assistantResults) assistantResults.hidden = true;
 			setAssistantStatus('');
+			showAssistantWelcome();
 			assistantMessageField?.focus();
 		});
 	</script>
