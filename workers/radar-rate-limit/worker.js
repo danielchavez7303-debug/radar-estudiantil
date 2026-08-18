@@ -18,7 +18,7 @@ export class RadarRateLimit extends DurableObject {
 		const row = this.ctx.storage.sql.exec(
 			'SELECT count, expires_at FROM rate_limits WHERE bucket_id = ?',
 			bucketId,
-		).one();
+		).toArray()[0] ?? null;
 		if (!row || Number(row.expires_at) <= now) {
 			this.ctx.storage.sql.exec(
 				'INSERT INTO rate_limits (bucket_id, count, expires_at) VALUES (?, ?, ?) ON CONFLICT(bucket_id) DO UPDATE SET count = excluded.count, expires_at = excluded.expires_at',
