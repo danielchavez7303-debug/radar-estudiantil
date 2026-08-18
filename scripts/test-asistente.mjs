@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import oportunidades from '../src/data/oportunidades.json' with { type: 'json' };
 import { hardCompatibilityForTest, isPromptInjection, rankOpportunities, summarizeMatch } from '../src/lib/radar-rank.js';
-import { candidateForModel, validateModelRecommendations, validateModelTextRecommendations } from '../src/lib/radar-assistant.js';
+import { buildCompatibilityReason, candidateForModel, validateModelRecommendations, validateModelTextRecommendations } from '../src/lib/radar-assistant.js';
 import { onRequest } from '../functions/api/asistente.js';
 
 const base = {
@@ -65,6 +65,10 @@ assert.equal(validateModelRecommendations({ recommendations: [{ slug: 'inventado
 assert.equal(validateModelRecommendations({ recommendations: [{ slug: 'compatible', reason: 'Coincide con tu nivel' }] }, modelCandidates).length, 1);
 assert.equal(validateModelRecommendations({ recommendations: [{ ref: '1', reason: 'Coincide con tu nivel' }] }, modelCandidates).length, 1);
 assert.equal(validateModelTextRecommendations('REF 1: Coincide con tu nivel', modelCandidates).length, 1);
+const machineReadable = validateModelRecommendations({ recommendations: [{ ref: '1', reason: 'Beca de programación | tipo=Becas | áreas=Programación | niveles=Preparatoria | costo=Gratuito' }] }, modelCandidates);
+assert.match(machineReadable[0].reason, /^Buena opción porque/);
+assert.doesNotMatch(machineReadable[0].reason, /tipo=|áreas=|niveles=|costo=/);
+assert.match(buildCompatibilityReason(modelCandidates[0]), /nivel educativo/);
 const multiRefCandidates = [
 	{ ...modelCandidates[0], ref: '1' },
 	{ ...modelCandidates[0], slug: 'segunda', titulo: 'Segunda oportunidad', ref: '2' },
