@@ -7,8 +7,10 @@ import {
 	buildUserPrompt,
 	candidateForModel,
 	deterministicRecommendation,
+	extractModelText,
 	extractModelJson,
 	validateModelRecommendations,
+	validateModelTextRecommendations,
 } from '../../src/lib/radar-assistant.js';
 
 const MAX_MESSAGE_LENGTH = 800;
@@ -107,15 +109,12 @@ const runAi = async (context, profile, results) => {
 		max_tokens: 320,
 		temperature: 0.1,
 		top_p: 0.85,
-		response_format: { type: 'json_object' },
 	});
 	const result = await Promise.race([aiPromise, wait(AI_TIMEOUT_MS).then(() => { throw new Error('AI_TIMEOUT'); })]);
 	const rawResponse = typeof result === 'string'
 		? result
 		: result?.response ?? result?.text ?? result?.output_text ?? '';
-	const responseText = typeof rawResponse === 'string'
-		? rawResponse
-		: rawResponse?.response ?? rawResponse?.text ?? '';
+	const responseText = typeof rawResponse === 'string' ? rawResponse : rawResponse?.response ?? rawResponse?.text ?? '';
 	console.log('Asistente Radar AI result:', JSON.stringify({
 		resultType: typeof result,
 		resultKeys: result && typeof result === 'object' ? Object.keys(result).slice(0, 8) : [],
@@ -124,13 +123,16 @@ const runAi = async (context, profile, results) => {
 	}));
 	const payload = extractModelJson(result);
 	const recommendations = validateModelRecommendations(payload, candidates);
-	if (!payload) throw new Error('AI_INVALID_JSON');
-	if (recommendations.length === 0) throw new Error('AI_NO_VALID_RECOMMENDATIONS');
+	const textRecommendations = recommendations.length ? recommendations : validateModelTextRecommendations(extractModelText(result), candidates);
+	if (textRecommendations.length === 0) throw new Error('AI_NO_VALID_RECOMMENDATIONS');
+	const intro = typeof payload?.intro === 'string' && payload.intro.trim()
+		? payload.intro.trim().slice(0, 500)
+		: 'Estas parecen las opciones más compatibles con tu búsqueda:';
 	return {
 		mode: 'ai',
 		explanationAvailable: true,
-		message: typeof payload.intro === 'string' && payload.intro.trim() ? payload.intro.trim().slice(0, 500) : 'Estas parecen las opciones más compatibles con tu búsqueda:',
-		recommendations: recommendations.map((recommendation) => ({
+		message: intro,
+		recommendations: textRecommendations.map((recommendation) => ({
 			...recommendation,
 			url: `${BASE_URL}oportunidades/${recommendation.slug}`,
 		})),
