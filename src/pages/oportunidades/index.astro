@@ -2,6 +2,7 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import oportunidades from '../../data/oportunidades.json';
 import '../../styles/catalog.css';
+import { catalogRelevanceBase } from '../../lib/catalog-search.js';
 
 const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
 const oportunidadesPublicas = oportunidades.filter((oportunidad) => oportunidad.publicar && oportunidad.estadoVerificacion === 'verificada');
@@ -51,49 +52,7 @@ const searchText = (oportunidad: (typeof oportunidadesPublicas)[number]) =>
 	]
 		.join(' ')
 		.toLocaleLowerCase('es-MX');
-const normalizeForRelevance = (value: string) =>
-	value.toLocaleLowerCase('es-MX').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-const relevanceBase = (oportunidad: (typeof oportunidadesPublicas)[number]) => {
-	const searchable = normalizeForRelevance(
-		[
-			oportunidad.titulo,
-			oportunidad.organizacion,
-			oportunidad.descripcion,
-			oportunidad.cobertura,
-			...oportunidad.niveles,
-			...oportunidad.estados,
-		].join(' '),
-	);
-	const statusScore: Record<string, number> = {
-		activa: 120,
-		permanente: 100,
-		proxima: 80,
-		enProceso: 48,
-		resultados: 28,
-		cerrada: -35,
-		finalizada: -60,
-	};
-	const categoryScore: Record<string, number> = {
-		Becas: 30,
-		'Beneficio estudiantil': 18,
-		'Programa educativo': 12,
-		Cursos: 12,
-		'Recurso gratuito': 10,
-		Competencias: 6,
-	};
-	let score = statusScore[oportunidad.estado] ?? 0;
-	score += categoryScore[oportunidad.categoria] ?? 0;
-	if (oportunidad.cobertura === 'México' || oportunidad.estados.includes('Nacional')) score += 28;
-	if (oportunidad.modalidad.toLocaleLowerCase('es-MX').includes('en línea')) score += 10;
-	if (oportunidad.costo.toLocaleLowerCase('es-MX').includes('gratuito')) score += 8;
-	score += Math.min(oportunidad.niveles.length, 4) * 4;
-	if (!oportunidad.edadMinima) score += 3;
-	if (!oportunidad.edadMaxima) score += 3;
-	if (oportunidad.requiereTutor) score -= 2;
-	const highReachPrograms = ['rita cetina', 'benito juarez', 'benito juárez', 'jovenes escribiendo el futuro', 'jóvenes escribiendo el futuro', 'beca universal'];
-	if (highReachPrograms.some((program) => searchable.includes(normalizeForRelevance(program)))) score += 90;
-	return score;
-};
+const relevanceBase = catalogRelevanceBase;
 ---
 
 <BaseLayout
@@ -288,6 +247,7 @@ const relevanceBase = (oportunidad: (typeof oportunidadesPublicas)[number]) => {
 						<select id="filtro-vigencia">
 							<option value="">Cualquier vigencia</option>
 							<option value="activa">Activa</option>
+							<option value="abiertas">Abiertas ahora</option>
 							<option value="proxima">Próxima</option>
 							<option value="permanente">Permanente</option>
 							<option value="enProceso">En proceso</option>
@@ -300,9 +260,17 @@ const relevanceBase = (oportunidad: (typeof oportunidadesPublicas)[number]) => {
 						<span>Costo</span>
 						<select id="filtro-costo">
 							<option value="">Cualquier costo</option>
-							{costos.map((costo) => <option value={costo}>{costo}</option>)}
+							<option value="gratis">Gratuito</option>
+							<option value="pago">Con costo</option>
 						</select>
 						</label>
+				</div>
+				<div class="catalog-filter-presets" id="filtro-presets" aria-label="Atajos de filtrado">
+					<span>Atajos:</span>
+					<button type="button" class="filter-preset" data-preset="gratis">Gratis</button>
+					<button type="button" class="filter-preset" data-preset="abiertas">Abiertas ahora</button>
+					<button type="button" class="filter-preset" data-preset="online">En línea</button>
+					<button type="button" class="filter-preset" data-preset="nacional">Nacional</button>
 				</div>
 				<p class="catalog-filter-note">Al elegir un estado aparecen sus oportunidades locales y también las opciones nacionales que aplican en todo México.</p>
 			</div>
@@ -340,6 +308,7 @@ const relevanceBase = (oportunidad: (typeof oportunidadesPublicas)[number]) => {
 							data-tipo={oportunidad.categoria}
 							data-area={oportunidad.areas.join('|')}
 							data-ubicacion={[...new Set([...oportunidad.estados, oportunidad.cobertura])].join('|')}
+							data-cobertura={oportunidad.cobertura}
 							data-institucion={oportunidad.tipoInstitucion}
 							data-nivel={oportunidad.niveles.join('|')}
 							data-organizacion={oportunidad.organizacion}
@@ -413,12 +382,14 @@ const relevanceBase = (oportunidad: (typeof oportunidadesPublicas)[number]) => {
 		const clearButton = document.querySelector<HTMLButtonElement>('#limpiar');
 		const emptyClearButton = document.querySelector<HTMLButtonElement>('#empty-clear');
 		const filtersToggle = document.querySelector<HTMLButtonElement>('#toggle-filtros');
+		const filterPresets = [...document.querySelectorAll<HTMLButtonElement>('[data-preset]')];
 		const filtersPanel = document.querySelector<HTMLElement>('#catalog-filtros');
 		const activeFilters = document.querySelector<HTMLElement>('#filtros-activos');
 		const favoritesOnly = document.querySelector<HTMLInputElement>('#solo-favoritos');
 		const emptyTitle = document.querySelector<HTMLElement>('#catalog-empty-title');
 		const emptyCopy = document.querySelector<HTMLElement>('#catalog-empty-copy');
 		const count = document.querySelector<HTMLElement>('#resultado-count');
+		const resultsHelp = document.querySelector<HTMLElement>('#resultados-ayuda');
 		const emptyState = document.querySelector<HTMLElement>('#catalog-empty');
 		const loadingState = document.querySelector<HTMLElement>('#catalog-loading');
 		const errorState = document.querySelector<HTMLElement>('#catalog-error');
@@ -434,7 +405,7 @@ const relevanceBase = (oportunidad: (typeof oportunidadesPublicas)[number]) => {
 			favorites = new Set();
 		}
 
-		const normalize = (value: string) => value.toLocaleLowerCase('es-MX').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+		import { catalogRelevanceScore, matchesCatalogFilters, normalizeText as normalize } from '../../lib/catalog-search.js';
 		const params = new URLSearchParams(window.location.search);
 		if (searchInput) searchInput.value = params.get('q') ?? '';
 		if (typeFilter) typeFilter.value = params.get('tipo') ?? '';
@@ -534,6 +505,14 @@ const relevanceBase = (oportunidad: (typeof oportunidadesPublicas)[number]) => {
 				chip.append(text, close);
 				activeFilters.append(chip);
 			});
+			if (selected.length > 1) {
+				const clearAll = document.createElement('button');
+				clearAll.type = 'button';
+				clearAll.className = 'filter-chip filter-chip-clear';
+				clearAll.dataset.clearFilter = 'all';
+				clearAll.textContent = 'Limpiar todo';
+				activeFilters.append(clearAll);
+			}
 			activeFilters.hidden = selected.length === 0;
 		};
 
@@ -554,29 +533,24 @@ const relevanceBase = (oportunidad: (typeof oportunidadesPublicas)[number]) => {
 			sorted.forEach((card) => grid.append(card));
 		};
 
-		const relevanceScore = (card: HTMLElement, query: string) => {
-			const baseScore = Number(card.dataset.baseScore ?? 0);
-			if (!query) return baseScore;
-			const title = normalize(card.dataset.titulo ?? '');
-			const type = normalize(card.dataset.tipo ?? '');
-			const areas = normalize((card.dataset.area ?? '').replaceAll('|', ' '));
-			const levels = normalize((card.dataset.nivel ?? '').replaceAll('|', ' '));
-			const organization = normalize(card.dataset.organizacion ?? '');
-			const searchable = normalize(card.dataset.search ?? '');
-			return query.split(/\s+/).filter(Boolean).reduce((total, token) => {
-				let score = 0;
-				if (title === token) score += 160;
-				else if (title.startsWith(token)) score += 110;
-				else if (title.includes(token)) score += 80;
-				if (type === token) score += 55;
-				else if (type.includes(token)) score += 38;
-				if (areas.includes(token)) score += 35;
-				if (levels.includes(token)) score += 28;
-				if (organization.includes(token)) score += 24;
-				if (searchable.includes(token)) score += 7;
-				return total + score;
-			}, baseScore);
-		};
+		const cardMeta = (card: HTMLElement) => ({
+			slug: card.dataset.slug ?? '',
+			titulo: card.dataset.titulo ?? '',
+			categoria: card.dataset.tipo ?? '',
+			areas: (card.dataset.area ?? '').split('|').filter(Boolean),
+			ubicacion: (card.dataset.ubicacion ?? '').split('|').filter(Boolean),
+			cobertura: card.dataset.cobertura ?? '',
+			institucion: card.dataset.institucion ?? '',
+			nivel: (card.dataset.nivel ?? '').split('|').filter(Boolean),
+			organizacion: card.dataset.organizacion ?? '',
+			estado: card.dataset.estado ?? '',
+			costo: card.dataset.costo ?? '',
+			modalidad: card.dataset.modalidad ?? '',
+			search: card.dataset.search ?? '',
+			baseScore: Number(card.dataset.baseScore ?? 0),
+		});
+
+		const relevanceScore = (card: HTMLElement, query: string) => catalogRelevanceScore(cardMeta(card), query);
 
 		const showCatalogError = () => {
 			if (errorState) errorState.hidden = false;
@@ -586,49 +560,43 @@ const relevanceBase = (oportunidad: (typeof oportunidadesPublicas)[number]) => {
 
 		const updateResults = () => {
 			try {
-			const query = normalize(searchInput?.value ?? '');
-			const selectedType = typeFilter?.value ?? '';
-			const selectedArea = areaFilter?.value ?? '';
-			const selectedLocation = locationFilter?.value ?? '';
-			const selectedInstitution = institutionFilter?.value ?? '';
-			const selectedLevel = levelFilter?.value ?? '';
-			const selectedStatus = statusFilter?.value ?? '';
-			const selectedCost = costFilter?.value ?? '';
-			const selectedFavorites = favoritesOnly?.checked ?? false;
-			let visible = 0;
-
-			cards.forEach((card) => {
-				const score = relevanceScore(card, query);
-				card.dataset.score = String(score);
-				const normalizedSearch = normalize(card.dataset.search ?? '');
-				const queryTokens = query.split(/\s+/).filter(Boolean);
-				const matchesQuery = !query || normalizedSearch.includes(query) || queryTokens.every((token) => normalizedSearch.includes(token));
-				const matchesType = !selectedType || card.dataset.tipo === selectedType;
-				const matchesArea = !selectedArea || (card.dataset.area ?? '').split('|').includes(selectedArea);
-				const cardLocations = (card.dataset.ubicacion ?? '').split('|');
-				const isMexicanState = [
-					'Aguascalientes', 'Baja California', 'Baja California Sur', 'Campeche', 'Chiapas', 'Chihuahua', 'Ciudad de México', 'Coahuila', 'Colima', 'Durango', 'Estado de México', 'Guanajuato', 'Guerrero', 'Hidalgo', 'Jalisco', 'Michoacán', 'Morelos', 'Nayarit', 'Nuevo León', 'Oaxaca', 'Puebla', 'Querétaro', 'Quintana Roo', 'San Luis Potosí', 'Sinaloa', 'Sonora', 'Tabasco', 'Tamaulipas', 'Tlaxcala', 'Veracruz', 'Yucatán', 'Zacatecas',
-				].includes(selectedLocation);
-				const matchesLocation = !selectedLocation || cardLocations.includes(selectedLocation) || (isMexicanState && cardLocations.includes('Nacional'));
-				const matchesInstitution = !selectedInstitution || card.dataset.institucion === selectedInstitution;
-				const matchesLevel = !selectedLevel || (card.dataset.nivel ?? '').split('|').includes(selectedLevel);
-				const matchesStatus = !selectedStatus || card.dataset.estado === selectedStatus;
-				const matchesCost = !selectedCost || card.dataset.costo === selectedCost;
-				const matchesFavorite = !selectedFavorites || favorites.has(card.dataset.slug ?? '');
-				const matches = matchesQuery && matchesType && matchesArea && matchesLocation && matchesInstitution && matchesLevel && matchesStatus && matchesCost && matchesFavorite;
-
-				card.hidden = !matches;
-				if (matches) visible += 1;
-			});
-
-			if (count) count.textContent = String(visible);
-			if (emptyState) emptyState.hidden = visible !== 0;
-			if (emptyTitle) emptyTitle.textContent = selectedFavorites ? 'Todavía no tienes guardadas.' : 'No encontramos coincidencias.';
-			if (emptyCopy) emptyCopy.textContent = selectedFavorites ? 'Guarda una oportunidad con el corazón para verla aquí cuando vuelvas.' : 'Prueba con otra palabra o limpia los filtros para ver todo el catálogo.';
-			if (clearButton) clearButton.hidden = !query && !selectedType && !selectedArea && !selectedLocation && !selectedInstitution && !selectedLevel && !selectedStatus && !selectedCost && !selectedFavorites;
-			renderActiveFilters();
-			syncUrl();
-			sortCards();
+				const query = searchInput?.value ?? '';
+				const selectedFavorites = favoritesOnly?.checked ?? false;
+				const filters = {
+					query,
+					type: typeFilter?.value ?? '',
+					area: areaFilter?.value ?? '',
+					location: locationFilter?.value ?? '',
+					institution: institutionFilter?.value ?? '',
+					level: levelFilter?.value ?? '',
+					status: statusFilter?.value ?? '',
+					cost: costFilter?.value ?? '',
+					favoritesOnly: selectedFavorites,
+					favorites,
+				};
+				let visible = 0;
+				cards.forEach((card) => {
+					const meta = cardMeta(card);
+					const matches = matchesCatalogFilters(meta, filters);
+					card.dataset.score = String(relevanceScore(card, query));
+					card.hidden = !matches;
+					if (matches) visible += 1;
+				});
+				if (count) count.textContent = String(visible);
+				if (resultsHelp) {
+					resultsHelp.textContent = visible === cards.length
+						? 'Las fichas enlazan a una página con detalles, requisitos y fuente oficial.'
+						: `Mostrando ${visible} de ${cards.length} oportunidades. Ajusta los filtros para ampliar o afinar la búsqueda.`;
+				}
+				if (emptyState) emptyState.hidden = visible !== 0;
+				if (emptyTitle) emptyTitle.textContent = selectedFavorites ? 'Todavía no tienes guardadas.' : 'No encontramos coincidencias.';
+				if (emptyCopy) emptyCopy.textContent = selectedFavorites
+					? 'Guarda una oportunidad con el corazón para verla aquí cuando vuelvas.'
+					: 'Prueba con otra palabra, cambia un filtro o restablece la búsqueda.';
+				if (clearButton) clearButton.hidden = !query && !typeFilter?.value && !areaFilter?.value && !locationFilter?.value && !institutionFilter?.value && !levelFilter?.value && !statusFilter?.value && !costFilter?.value && !selectedFavorites;
+				renderActiveFilters();
+				syncUrl();
+				sortCards();
 				if (errorState) errorState.hidden = true;
 			} catch {
 				showCatalogError();
@@ -675,6 +643,10 @@ const relevanceBase = (oportunidad: (typeof oportunidadesPublicas)[number]) => {
 			const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-clear-filter]');
 			const key = button?.dataset.clearFilter;
 			if (!key) return;
+			if (key === 'all') {
+				resetFilters();
+				return;
+			}
 			if (key === 'q' && searchInput) searchInput.value = '';
 			if (key === 'tipo' && typeFilter) typeFilter.value = '';
 			if (key === 'area' && areaFilter) areaFilter.value = '';
@@ -684,6 +656,33 @@ const relevanceBase = (oportunidad: (typeof oportunidadesPublicas)[number]) => {
 			if (key === 'vigencia' && statusFilter) statusFilter.value = '';
 			if (key === 'costo' && costFilter) costFilter.value = '';
 			if (key === 'favoritos' && favoritesOnly) favoritesOnly.checked = false;
+			updateResults();
+		});
+		filterPresets.forEach((button) => {
+			button.addEventListener('click', () => {
+				const preset = button.dataset.preset;
+				if (preset === 'gratis' && costFilter) costFilter.value = 'gratis';
+				if (preset === 'abiertas' && statusFilter) statusFilter.value = 'abiertas';
+				if (preset === 'online' && locationFilter) locationFilter.value = 'En línea';
+				if (preset === 'nacional' && locationFilter) locationFilter.value = 'Nacional';
+				filtersPanel?.classList.add('is-open');
+				filtersToggle?.setAttribute('aria-expanded', 'true');
+				if (filtersToggle) filtersToggle.innerHTML = 'Ocultar filtros <span aria-hidden="true">−</span>';
+				updateResults();
+			});
+		});
+		window.addEventListener('popstate', () => {
+			const nextParams = new URLSearchParams(window.location.search);
+			if (searchInput) searchInput.value = nextParams.get('q') ?? '';
+			if (typeFilter) typeFilter.value = nextParams.get('tipo') ?? '';
+			if (areaFilter) areaFilter.value = nextParams.get('area') ?? '';
+			if (locationFilter) locationFilter.value = nextParams.get('ubicacion') ?? '';
+			if (institutionFilter) institutionFilter.value = nextParams.get('institucion') ?? '';
+			if (levelFilter) levelFilter.value = nextParams.get('nivel') ?? '';
+			if (statusFilter) statusFilter.value = nextParams.get('vigencia') ?? '';
+			if (costFilter) costFilter.value = nextParams.get('costo') ?? '';
+			if (favoritesOnly) favoritesOnly.checked = nextParams.get('favoritos') === '1';
+			if (sortSelect) sortSelect.value = nextParams.get('orden') ?? 'relevancia';
 			updateResults();
 		});
 		retryButton?.addEventListener('click', () => window.location.reload());
