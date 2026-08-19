@@ -603,6 +603,51 @@
 	text-decoration: none;
 }
 
+.assistant-recommendation-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4rem;
+	margin-top: 0.6rem;
+}
+
+.assistant-recommendation-actions a {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 2rem;
+	padding: 0.38rem 0.58rem;
+	border: 1px solid #cfe2d3;
+	border-radius: 0.45rem;
+	font-size: 0.66rem;
+	font-weight: 800;
+	text-decoration: none;
+	transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.assistant-recommendation-actions a:hover,
+.assistant-recommendation-actions a:focus-visible {
+	border-color: var(--green);
+	transform: translateY(-1px);
+}
+
+.assistant-recommendation-actions .assistant-recommendation-link {
+	margin-top: 0;
+	color: var(--green);
+	background: #fff;
+}
+
+.assistant-recommendation-official {
+	color: #fff;
+	background: var(--green);
+}
+
+.assistant-recommendation-official:hover,
+.assistant-recommendation-official:focus-visible {
+	color: #fff;
+	background: #0b6d40;
+}
+
+
 .assistant-source-note {
 	margin: 0.8rem 0 0;
 	color: #748379;
