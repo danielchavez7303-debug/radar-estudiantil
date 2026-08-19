@@ -147,7 +147,7 @@ assert.ok(summaryOnlyPayload.recommendations.length > 0);
 
 const genericSummaryResponse = await onRequest(makeContext({ message: 'Busco cursos gratuitos de programación.', profile: { free: true } }, {
 	RATE_LIMITER: allowedBinding,
-	AI: { run: async () => ({ response: 'RESUMEN: Revisa la información de la modalidad y el nivel de la candidatura.\\nREF 1: Coincide con tus intereses.' }) },
+	AI: { run: async () => ({ response: 'RESUMEN: Revisa la información de la modalidad y el nivel de la candidatura.\nREF 1: Coincide con tus intereses.' }) },
 }));
 const genericSummaryPayload = await genericSummaryResponse.json();
 assert.equal(genericSummaryResponse.status, 200);
