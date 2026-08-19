@@ -74,7 +74,7 @@ assert.equal(normalizeProfile({}, 'Busco un programa educativo gratuito.').type,
 assert.match(extractModelSummary('RESUMEN: Te conviene empezar por opciones gratuitas.\nREF 1: Coincide con tu nivel.'), /opciones gratuitas/);
 assert.equal(extractModelSummary('RESUMEN: tipo=Becas | costo=Gratuito'), '');
 assert.equal(sanitizeConversation([{ role: 'user', content: '  ¿Qué requisitos tiene?  ' }, { role: 'system', content: 'no' }]).length, 1);
-assert.match(buildAssistantSummary({ level: 'Preparatoria', state: 'Jalisco', interests: ['programación'], free: true }, ranked.results), /Preparatoria|Jalisco|programación/);
+assert.match(buildAssistantSummary({ level: 'Preparatoria', state: 'Jalisco', interests: ['programación'], free: true }, ranked.results), /Empieza por|Siguiente paso/);
 
 const modelCandidates = ranked.results.map(candidateForModel);
 assert.equal(validateModelRecommendations({ recommendations: [{ slug: 'inventado', reason: 'No corresponde' }] }, modelCandidates).length, 0);
