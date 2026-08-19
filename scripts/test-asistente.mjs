@@ -67,6 +67,7 @@ assert.equal(extractModelSummary('RESUMEN: tipo=Becas | costo=Gratuito'), '');
 assert.equal(sanitizeConversation([{ role: 'user', content: '  ¿Qué requisitos tiene?  ' }, { role: 'system', content: 'no' }]).length, 1);
 assert.match(buildAssistantSummary({ level: 'Preparatoria', state: 'Jalisco', interests: ['programación'], free: true }, ranked.results), /Empieza por|Siguiente paso/);
 assert.equal(isGenericAssistantSummary('Revisa la información de la modalidad y el nivel de la candidatura.'), true);
+assert.equal(isGenericAssistantSummary('Revisar la compatibilidad de intereses y modalidad de la opción de GitHub Student Developer Pack.'), true);
 assert.equal(isGenericAssistantSummary('Empieza por GitHub Student Developer Pack: coincide con tu edad.'), false);
 assert.equal(normalizeProfile({}, 'Busco oportunidades gratuitas de programación.').type, null);
 assert.deepEqual(normalizeProfile({}, 'Busco oportunidades gratuitas de programación y matemáticas.').interests, ['Programación', 'Matemáticas']);
