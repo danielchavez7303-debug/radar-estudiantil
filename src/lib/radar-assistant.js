@@ -80,6 +80,8 @@ export const candidateForModel = (result, index) => {
 		cobertura: opportunity.cobertura,
 		estado: opportunity.estado,
 		fechaCierre: opportunity.fechaCierre ?? null,
+		enlaceConvocatoria: typeof opportunity.enlaceConvocatoria === 'string' ? opportunity.enlaceConvocatoria : null,
+		sitioOficial: typeof opportunity.sitioOficial === 'string' ? opportunity.sitioOficial : null,
 		requisitos: Array.isArray(opportunity.requisitos) ? opportunity.requisitos.slice(0, 4) : [],
 		compatibilidad: {
 			resumen: summarizeMatch(result),
