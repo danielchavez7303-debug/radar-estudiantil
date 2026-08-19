@@ -37,7 +37,7 @@ const fixture = (overrides) => ({
 });
 
 const fixtures = [
-	fixture({ slug: 'compatible', titulo: 'Beca de programación', areas: ['Programación'], niveles: ['Preparatoria'] }),
+	fixture({ slug: 'compatible', titulo: 'Beca de programación', areas: ['Programación'], niveles: ['Preparatoria'], enlaceConvocatoria: 'https://example.org/convocatoria', sitioOficial: 'https://example.org' }),
 	fixture({ slug: 'nivel-incorrecto', titulo: 'Beca universitaria', niveles: ['Universidad'] }),
 	fixture({ slug: 'estado-incorrecto', titulo: 'Beca en Sonora', estados: ['Sonora'], cobertura: 'Sonora' }),
 	fixture({ slug: 'cerrada', titulo: 'Beca cerrada', estado: 'cerrada' }),
@@ -78,6 +78,8 @@ assert.equal(sanitizeConversation([{ role: 'user', content: '  ¿Qué requisitos
 assert.match(buildAssistantSummary({ level: 'Preparatoria', state: 'Jalisco', interests: ['programación'], free: true }, ranked.results), /Empieza por|Siguiente paso/);
 
 const modelCandidates = ranked.results.map(candidateForModel);
+assert.equal(modelCandidates[0].enlaceConvocatoria, 'https://example.org/convocatoria');
+assert.equal(modelCandidates[0].sitioOficial, 'https://example.org');
 assert.equal(validateModelRecommendations({ recommendations: [{ slug: 'inventado', reason: 'No corresponde' }] }, modelCandidates).length, 0);
 assert.equal(validateModelRecommendations({ recommendations: [{ slug: 'compatible', reason: 'Coincide con tu nivel' }] }, modelCandidates).length, 1);
 assert.equal(validateModelRecommendations({ recommendations: [{ ref: '1', reason: 'Coincide con tu nivel' }] }, modelCandidates).length, 1);

@@ -186,23 +186,23 @@ const relevanceBase = catalogRelevanceBase;
 					<div class="assistant-chat" id="assistant-chat" hidden>
 						<div class="assistant-chat-intro"><strong>Chat temporal de Radar</strong><span>Pregunta por requisitos, costo o modalidad. No guardamos esta conversación.</span></div>
 						<div class="assistant-chat-log" id="assistant-chat-log" role="log" aria-live="polite" aria-label="Conversación con Asistente Radar"></div>
+						<div class="assistant-status" id="assistant-status" role="status" aria-live="polite" hidden></div>
+						<div class="assistant-results" id="assistant-results" aria-live="polite" hidden>
+							<div class="assistant-results-head">
+								<div>
+									<p class="eyebrow">Resultado Radar</p>
+									<h3 id="assistant-results-title">Recomendaciones de Radar</h3>
+								</div>
+								<button class="assistant-reset" id="assistant-reset" type="button">Nueva búsqueda</button>
+							</div>
+							<ol class="assistant-recommendations" id="assistant-recommendations"></ol>
+							<p class="assistant-source-note" id="assistant-source-note"></p>
+						</div>
 						<div class="assistant-chat-suggestions" id="assistant-chat-suggestions" aria-label="Preguntas rápidas">
 							<button type="button" data-assistant-suggestion="¿Cuál de estas opciones parece más adecuada para mi situación?">¿Cuál me conviene más?</button>
 							<button type="button" data-assistant-suggestion="¿Qué requisitos debo revisar primero?">¿Qué requisitos reviso?</button>
 							<button type="button" data-assistant-suggestion="¿Cuál es gratuita y cómo funciona su modalidad?">Costo y modalidad</button>
 						</div>
-					</div>
-					<div class="assistant-status" id="assistant-status" role="status" aria-live="polite" hidden></div>
-					<div class="assistant-results" id="assistant-results" aria-live="polite" hidden>
-						<div class="assistant-results-head">
-							<div>
-								<p class="eyebrow">Resultado Radar</p>
-								<h3 id="assistant-results-title">Estas parecen tus mejores opciones.</h3>
-							</div>
-							<button class="assistant-reset" id="assistant-reset" type="button">Nueva búsqueda</button>
-						</div>
-						<ol class="assistant-recommendations" id="assistant-recommendations"></ol>
-						<p class="assistant-source-note" id="assistant-source-note"></p>
 					</div>
 					</div>
 				</div>
@@ -335,6 +335,8 @@ const relevanceBase = catalogRelevanceBase;
 							data-titulo={oportunidad.titulo}
 							data-slug={oportunidad.slug}
 							data-cierre={oportunidad.fechaCierre ?? ''}
+							data-enlace-convocatoria={oportunidad.enlaceConvocatoria ?? ''}
+							data-sitio-oficial={oportunidad.sitioOficial ?? ''}
 							data-verificacion={oportunidad.ultimaVerificacion ?? ''}
 							data-base-score={relevanceBase(oportunidad)}
 						>
@@ -798,18 +800,32 @@ const relevanceBase = catalogRelevanceBase;
 					warning.textContent = `Aviso: ${recommendation.warning}`;
 					body.append(warning);
 				}
-				const link = document.createElement('a');
-				link.className = 'assistant-recommendation-link';
-				link.href = title.href;
-				link.textContent = 'Ver ficha completa ↗';
-				body.append(link);
+				const actions = document.createElement('div');
+				actions.className = 'assistant-recommendation-actions';
+				const radarLink = document.createElement('a');
+				radarLink.className = 'assistant-recommendation-link';
+				radarLink.href = title.href;
+				radarLink.textContent = 'Abrir ficha en Radar ↗';
+				actions.append(radarLink);
+				const officialUrl = [recommendation.enlaceConvocatoria, recommendation.sitioOficial]
+					.map((value) => String(value ?? '').trim())
+					.find((value) => value.startsWith('https://') || value.startsWith('http://'));
+				if (officialUrl) {
+					const officialLink = document.createElement('a');
+					officialLink.className = 'assistant-recommendation-official';
+					officialLink.href = officialUrl;
+					officialLink.target = '_blank';
+					officialLink.rel = 'noopener noreferrer';
+					officialLink.title = 'Consulta requisitos y participa en el sitio oficial';
+					officialLink.textContent = 'Ir al sitio oficial ↗';
+					actions.append(officialLink);
+				}
+				body.append(actions);
 				item.append(body);
 				assistantRecommendations.append(item);
 			});
 			assistantResults.hidden = false;
-			if (assistantResultsTitle) assistantResultsTitle.textContent = payload.mode === 'ai' && payload.message
-				? payload.message
-				: 'Estas son las opciones que mejor encajan con tu búsqueda.';
+			if (assistantResultsTitle) assistantResultsTitle.textContent = 'Recomendaciones de Radar';
 			if (assistantSourceNote) assistantSourceNote.textContent = payload.sourceNote || 'Confirma siempre los datos en la fuente oficial.';
 		};
 
@@ -846,6 +862,8 @@ const relevanceBase = catalogRelevanceBase;
 					slug: card.dataset.slug,
 					titulo: card.dataset.titulo,
 					url: `/oportunidades/${encodeURIComponent(card.dataset.slug ?? '')}`,
+					enlaceConvocatoria: card.dataset.enlaceConvocatoria || null,
+					sitioOficial: card.dataset.sitioOficial || null,
 					reason: 'Está activa y disponible en el catálogo; revisa sus requisitos en la ficha.',
 					compatibilidad: { desconocidos: ['Perfil no disponible temporalmente'] },
 				}));
@@ -943,7 +961,12 @@ const relevanceBase = catalogRelevanceBase;
 					assistantConversation = [...assistantConversation, { role: 'assistant', content: reply }].slice(-6);
 				}
 				renderAssistantRecommendations(payload);
-				setAssistantStatus(payload.mode === 'ai' ? 'Explicación generada usando únicamente las candidatas de Radar.' : payload.message, payload.mode === 'ai' ? 'success' : 'fallback');
+				const statusMessage = payload.mode === 'ai'
+					? 'Explicación generada usando únicamente las candidatas de Radar.'
+					: payload.mode === 'rate-limit'
+						? 'Límite temporal alcanzado; estas opciones salen del ranking de Radar.'
+						: 'Estas recomendaciones salen del ranking verificable de Radar.';
+				setAssistantStatus(statusMessage, payload.mode === 'ai' ? 'success' : 'fallback');
 			} catch {
 				const payload = clientFallback(profile);
 				const reply = assistantReplyText(payload);
