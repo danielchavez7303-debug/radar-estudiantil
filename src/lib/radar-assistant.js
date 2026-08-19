@@ -202,7 +202,7 @@ export const validateModelRecommendations = (payload, candidates) => {
 	return payload.recommendations
 		.map((item) => {
 			if (!item || typeof item !== 'object') return null;
-			const reference = item.ref ?? item.id ?? item.index;
+			const reference = item.ref ?? item.id ?? item.index ?? item.reference ?? item.number;
 			const title = item.titulo ?? item.title ?? item.name;
 			const candidate = (typeof item.slug === 'string' ? bySlug.get(item.slug) : null)
 				?? (reference !== undefined ? byReference.get(String(reference)) : null)
@@ -233,7 +233,7 @@ export const validateModelTextRecommendations = (text, candidates) => {
 		// Algunos modelos devuelven varias referencias en una sola línea
 		// (por ejemplo, "REF 1: ... REF 2: ..."). Extraemos cada marcador
 		// para que cada candidata conserve su propia razón en la interfaz.
-		const markers = [...line.matchAll(/(?:^|\s)(?:REF\s*)?(\d{1,2})\s*[:.)\-]\s*/gi)];
+		const markers = [...line.matchAll(/(?:^|\s)(?:REF\s*)?(\d{1,2})\s*[:.)\-–—]\s*/gi)];
 		for (let index = 0; index < markers.length; index += 1) {
 			const marker = markers[index];
 			const nextMarker = markers[index + 1];

@@ -79,6 +79,7 @@ assert.equal(validateModelRecommendations({ recommendations: [{ slug: 'inventado
 assert.equal(validateModelRecommendations({ recommendations: [{ slug: 'compatible', reason: 'Coincide con tu nivel' }] }, modelCandidates).length, 1);
 assert.equal(validateModelRecommendations({ recommendations: [{ ref: '1', reason: 'Coincide con tu nivel' }] }, modelCandidates).length, 1);
 assert.equal(validateModelTextRecommendations('REF 1: Coincide con tu nivel', modelCandidates).length, 1);
+assert.equal(validateModelTextRecommendations('REF 1 — Coincide con tu nivel', modelCandidates).length, 1);
 const machineReadable = validateModelRecommendations({ recommendations: [{ ref: '1', reason: 'Beca de programación | tipo=Becas | áreas=Programación | niveles=Preparatoria | costo=Gratuito' }] }, modelCandidates);
 assert.match(machineReadable[0].reason, /^Buena opción porque/);
 assert.doesNotMatch(machineReadable[0].reason, /tipo=|áreas=|niveles=|costo=/);
@@ -132,6 +133,15 @@ const invalidAiResponse = await onRequest(makeContext({ message: 'Busco cursos g
 const invalidAiPayload = await invalidAiResponse.json();
 assert.equal(invalidAiResponse.status, 200);
 assert.equal(invalidAiPayload.mode, 'fallback');
+
+const summaryOnlyResponse = await onRequest(makeContext({ message: 'Busco cursos gratuitos de programación.', profile: { free: true } }, {
+	RATE_LIMITER: allowedBinding,
+	AI: { run: async () => ({ response: 'RESUMEN: Empieza por una opción gratuita de programación y revisa sus requisitos.' }) },
+}));
+const summaryOnlyPayload = await summaryOnlyResponse.json();
+assert.equal(summaryOnlyResponse.status, 200);
+assert.equal(summaryOnlyPayload.mode, 'ai');
+assert.ok(summaryOnlyPayload.recommendations.length > 0);
 
 const embeddedRefsResponse = await onRequest(makeContext({ message: 'Busco oportunidades educativas.', profile: {} }, {
 	RATE_LIMITER: allowedBinding,

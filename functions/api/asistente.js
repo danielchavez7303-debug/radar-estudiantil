@@ -142,10 +142,24 @@ const readBody = async (request) => {
 	} else if (textRecommendations.length > recommendations.length) {
 		recommendations = textRecommendations;
 	}
+	const modelSummary = extractModelSummary(modelText)
+		|| (typeof payload?.intro === 'string' && payload.intro.trim() ? payload.intro.trim().slice(0, 240) : '');
+	if (recommendations.length === 0 && modelSummary) {
+		// Si el modelo explicó la consulta pero no respetó el formato de refs,
+		// Radar conserva esa explicación y mantiene la selección determinista.
+		const deterministic = results.slice(0, 5).map((result) => deterministicRecommendation(result, BASE_URL));
+		return {
+			mode: 'ai',
+			explanationAvailable: true,
+			message: modelSummary,
+			recommendations: deterministic,
+			sourceNote: SOURCE_NOTE,
+		};
+	}
 	if (recommendations.length === 0) throw new Error('AI_NO_VALID_RECOMMENDATIONS');
 	const intro = typeof payload?.intro === 'string' && payload.intro.trim()
 		? payload.intro.trim().slice(0, 500)
-		: extractModelSummary(modelText) || buildAssistantSummary(profile, recommendations);
+		: modelSummary || buildAssistantSummary(profile, recommendations);
 	return {
 		mode: 'ai',
 		explanationAvailable: true,
