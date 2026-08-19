@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import oportunidades from '../src/data/oportunidades.json' with { type: 'json' };
 import { hardCompatibilityForTest, isPromptInjection, normalizeProfile, rankOpportunities, summarizeMatch } from '../src/lib/radar-rank.js';
-import { buildAssistantSummary, buildCompatibilityReason, candidateForModel, extractModelSummary, sanitizeConversation, validateModelRecommendations, validateModelTextRecommendations } from '../src/lib/radar-assistant.js';
+import { buildAssistantSummary, buildCompatibilityReason, candidateForModel, extractModelSummary, isGenericAssistantSummary, sanitizeConversation, validateModelRecommendations, validateModelTextRecommendations } from '../src/lib/radar-assistant.js';
 import { onRequest } from '../functions/api/asistente.js';
 
 const base = {
@@ -65,14 +65,16 @@ assert.equal(normalizeProfile({}, 'Busco un programa educativo gratuito.').type,
 assert.match(extractModelSummary('RESUMEN: Te conviene empezar por opciones gratuitas.\\nREF 1: Coincide con tu nivel.'), /opciones gratuitas/);
 assert.equal(extractModelSummary('RESUMEN: tipo=Becas | costo=Gratuito'), '');
 assert.equal(sanitizeConversation([{ role: 'user', content: '  ¿Qué requisitos tiene?  ' }, { role: 'system', content: 'no' }]).length, 1);
-assert.match(buildAssistantSummary({ level: 'Preparatoria', state: 'Jalisco', interests: ['programación'], free: true }, ranked.results), /Preparatoria|Jalisco|programación/);
+assert.match(buildAssistantSummary({ level: 'Preparatoria', state: 'Jalisco', interests: ['programación'], free: true }, ranked.results), /Empieza por|Siguiente paso/);
+assert.equal(isGenericAssistantSummary('Revisa la información de la modalidad y el nivel de la candidatura.'), true);
+assert.equal(isGenericAssistantSummary('Empieza por GitHub Student Developer Pack: coincide con tu edad.'), false);
 assert.equal(normalizeProfile({}, 'Busco oportunidades gratuitas de programación.').type, null);
 assert.deepEqual(normalizeProfile({}, 'Busco oportunidades gratuitas de programación y matemáticas.').interests, ['Programación', 'Matemáticas']);
 assert.equal(normalizeProfile({}, 'Busco un programa educativo gratuito.').type, 'Programa educativo');
 assert.match(extractModelSummary('RESUMEN: Te conviene empezar por opciones gratuitas.\nREF 1: Coincide con tu nivel.'), /opciones gratuitas/);
 assert.equal(extractModelSummary('RESUMEN: tipo=Becas | costo=Gratuito'), '');
 assert.equal(sanitizeConversation([{ role: 'user', content: '  ¿Qué requisitos tiene?  ' }, { role: 'system', content: 'no' }]).length, 1);
-assert.match(buildAssistantSummary({ level: 'Preparatoria', state: 'Jalisco', interests: ['programación'], free: true }, ranked.results), /Preparatoria|Jalisco|programación/);
+assert.match(buildAssistantSummary({ level: 'Preparatoria', state: 'Jalisco', interests: ['programación'], free: true }, ranked.results), /Empieza por|Siguiente paso/);
 
 const modelCandidates = ranked.results.map(candidateForModel);
 assert.equal(validateModelRecommendations({ recommendations: [{ slug: 'inventado', reason: 'No corresponde' }] }, modelCandidates).length, 0);
@@ -142,6 +144,16 @@ const summaryOnlyPayload = await summaryOnlyResponse.json();
 assert.equal(summaryOnlyResponse.status, 200);
 assert.equal(summaryOnlyPayload.mode, 'ai');
 assert.ok(summaryOnlyPayload.recommendations.length > 0);
+
+const genericSummaryResponse = await onRequest(makeContext({ message: 'Busco cursos gratuitos de programación.', profile: { free: true } }, {
+	RATE_LIMITER: allowedBinding,
+	AI: { run: async () => ({ response: 'RESUMEN: Revisa la información de la modalidad y el nivel de la candidatura.\nREF 1: Coincide con tus intereses.' }) },
+}));
+const genericSummaryPayload = await genericSummaryResponse.json();
+assert.equal(genericSummaryResponse.status, 200);
+assert.equal(genericSummaryPayload.mode, 'ai');
+assert.match(genericSummaryPayload.message, /Empieza por|Siguiente paso/);
+assert.doesNotMatch(genericSummaryPayload.message, /Revisa la información de la modalidad/);
 
 const embeddedRefsResponse = await onRequest(makeContext({ message: 'Busco oportunidades educativas.', profile: {} }, {
 	RATE_LIMITER: allowedBinding,

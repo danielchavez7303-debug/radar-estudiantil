@@ -10,6 +10,7 @@ import {
 	deterministicRecommendation,
 	extractModelText,
 	extractModelSummary,
+	isGenericAssistantSummary,
 	extractModelJson,
 	sanitizeConversation,
 	validateModelRecommendations,
@@ -128,7 +129,7 @@ const readBody = async (request) => {
 	const jsonRecommendations = validateModelRecommendations(payload, candidates);
 	const modelText = extractModelText(result);
 	const textRecommendations = validateModelTextRecommendations(modelText, candidates);
-	const hasEmbeddedReferences = jsonRecommendations.some((recommendation) => /(?:^|\s)(?:REF\s*)\d{1,2}\s*[:.)\-]/i.test(recommendation.reason));
+	const hasEmbeddedReferences = jsonRecommendations.some((recommendation) => /(?:^|\s)(?:REF\s*)\d{1,2}\s*[:.)\-–—]/i.test(recommendation.reason));
 	let recommendations = jsonRecommendations;
 	if (hasEmbeddedReferences) {
 		// Algunos modelos envuelven varias razones "REF N: ..." dentro
@@ -142,8 +143,11 @@ const readBody = async (request) => {
 	} else if (textRecommendations.length > recommendations.length) {
 		recommendations = textRecommendations;
 	}
-	const modelSummary = extractModelSummary(modelText)
-		|| (typeof payload?.intro === 'string' && payload.intro.trim() ? payload.intro.trim().slice(0, 240) : '');
+	const possibleSummaries = [
+		extractModelSummary(modelText),
+		typeof payload?.intro === 'string' ? payload.intro.trim().slice(0, 240) : '',
+	];
+	const modelSummary = possibleSummaries.find((summary) => summary && !isGenericAssistantSummary(summary)) || '';
 	if (recommendations.length === 0 && modelSummary) {
 		// Si el modelo explicó la consulta pero no respetó el formato de refs,
 		// Radar conserva esa explicación y mantiene la selección determinista.
@@ -157,9 +161,7 @@ const readBody = async (request) => {
 		};
 	}
 	if (recommendations.length === 0) throw new Error('AI_NO_VALID_RECOMMENDATIONS');
-	const intro = typeof payload?.intro === 'string' && payload.intro.trim()
-		? payload.intro.trim().slice(0, 500)
-		: modelSummary || buildAssistantSummary(profile, recommendations);
+	const intro = modelSummary || buildAssistantSummary(profile, recommendations);
 	return {
 		mode: 'ai',
 		explanationAvailable: true,

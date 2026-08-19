@@ -6,6 +6,18 @@ export const MAX_RECOMMENDATIONS = 5;
 
 const MACHINE_READABLE_REASON = /(?:^|[|\s])(?:tipo|áreas?|niveles?|costo|modalidad|compatibilidad|cobertura|estado|organización|sugerencia)\s*=/i;
 
+const GENERIC_SUMMARY_PATTERNS = [
+	/^revisa la información de la modalidad y el nivel de la candidatura\.?$/i,
+	/^(?:revisa|verifica|consulta|comprueba)\s+(?:la|el|los|las)?\s*(?:ficha|información|requisitos|modalidad|nivel)(?:\s+de la oportunidad)?\.?$/i,
+];
+
+export const isGenericAssistantSummary = (value) => {
+	const summary = String(value ?? '').replace(/\s+/g, ' ').trim();
+	if (!summary) return true;
+	if (summary.length < 58 && /^(?:revisa|verifica|consulta|comprueba)\b/i.test(summary)) return true;
+	return GENERIC_SUMMARY_PATTERNS.some((pattern) => pattern.test(summary));
+};
+
 const joinSpanish = (items) => {
 	if (items.length < 2) return items[0] ?? '';
 	if (items.length === 2) return `${items[0]} y ${items[1]}`;
@@ -31,14 +43,12 @@ export const buildCompatibilityReason = (candidate) => {
 };
 
 export const buildAssistantSummary = (profile, recommendations = []) => {
-	const focus = [
-		profile?.level && `tu nivel de ${profile.level.toLocaleLowerCase('es-MX')}`,
-		profile?.state && `tu estado (${profile.state})`,
-		profile?.interests?.length && `tus intereses (${profile.interests.slice(0, 2).join(' y ')})`,
-		profile?.free && 'tu preferencia por opciones gratuitas',
-	].filter(Boolean);
-	const context = focus.length ? ` considerando ${joinSpanish(focus)}` : '';
-	return `Encontré ${recommendations.length} ${recommendations.length === 1 ? 'opción verificada' : 'opciones verificadas'}${context}. Puedes preguntarme por requisitos, costo o modalidad.`;
+	if (!recommendations.length) return 'No encontré una opción compatible con esos datos. Prueba relajando algún requisito.';
+	const top = recommendations[0];
+	const title = top?.titulo || 'la primera opción';
+	const reason = buildCompatibilityReason(top).replace(/\.$/, '');
+	const warning = top?.warning ? ` Revisa también: ${String(top.warning).replace(/\s+/g, ' ').trim().slice(0, 150)}.` : '';
+	return `Empieza por ${title}: ${reason}. Siguiente paso: abre la ficha y confirma requisitos, costo y fecha en la fuente oficial.${warning}`;
 };
 
 export const sanitizeConversation = (history) => (Array.isArray(history) ? history : [])
