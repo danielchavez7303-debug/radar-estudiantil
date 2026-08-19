@@ -136,6 +136,7 @@ const invalidAiResponse = await onRequest(makeContext({ message: 'Busco cursos g
 const invalidAiPayload = await invalidAiResponse.json();
 assert.equal(invalidAiResponse.status, 200);
 assert.equal(invalidAiPayload.mode, 'fallback');
+assert.match(invalidAiPayload.message, /Empieza por|Siguiente paso/);
 
 const summaryOnlyResponse = await onRequest(makeContext({ message: 'Busco cursos gratuitos de programación.', profile: { free: true } }, {
 	RATE_LIMITER: allowedBinding,
