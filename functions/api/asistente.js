@@ -75,13 +75,17 @@ const consumeRateLimit = async (context) => {
 
 const deterministicRecommendations = (ranked) => ranked.results.slice(0, 5).map((result) => deterministicRecommendation(result, BASE_URL));
 
-export const buildFallbackPayload = (ranked, message = 'La explicación con IA no está disponible temporalmente.') => ({
-	mode: 'fallback',
-	explanationAvailable: false,
-	message,
-	recommendations: deterministicRecommendations(ranked),
-	sourceNote: SOURCE_NOTE,
-});
+export const buildFallbackPayload = (ranked, message = '') => {
+	const recommendations = deterministicRecommendations(ranked);
+	const usefulMessage = message || buildAssistantSummary(ranked.profile, recommendations);
+	return {
+		mode: 'fallback',
+		explanationAvailable: false,
+		message: usefulMessage,
+		recommendations,
+		sourceNote: SOURCE_NOTE,
+	};
+};
 
 const hasSearchSignal = (profile, message) => Boolean(
 	message || profile.age || profile.level || profile.state || profile.interests?.length || profile.type || profile.free || profile.modality,
