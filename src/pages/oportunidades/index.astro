@@ -809,7 +809,7 @@ const relevanceBase = catalogRelevanceBase;
 				actions.append(radarLink);
 				const officialUrl = [recommendation.enlaceConvocatoria, recommendation.sitioOficial]
 					.map((value) => String(value ?? '').trim())
-					.find((value) => /^https?:\\/\\//i.test(value));
+					.find((value) => value.startsWith('https://') || value.startsWith('http://'));
 				if (officialUrl) {
 					const officialLink = document.createElement('a');
 					officialLink.className = 'assistant-recommendation-official';
