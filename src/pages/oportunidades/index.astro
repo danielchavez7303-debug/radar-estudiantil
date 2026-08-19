@@ -961,7 +961,12 @@ const relevanceBase = catalogRelevanceBase;
 					assistantConversation = [...assistantConversation, { role: 'assistant', content: reply }].slice(-6);
 				}
 				renderAssistantRecommendations(payload);
-				setAssistantStatus(payload.mode === 'ai' ? 'Explicación generada usando únicamente las candidatas de Radar.' : payload.message, payload.mode === 'ai' ? 'success' : 'fallback');
+				const statusMessage = payload.mode === 'ai'
+					? 'Explicación generada usando únicamente las candidatas de Radar.'
+					: payload.mode === 'rate-limit'
+						? 'Límite temporal alcanzado; estas opciones salen del ranking de Radar.'
+						: 'Estas recomendaciones salen del ranking verificable de Radar.';
+				setAssistantStatus(statusMessage, payload.mode === 'ai' ? 'success' : 'fallback');
 			} catch {
 				const payload = clientFallback(profile);
 				const reply = assistantReplyText(payload);
