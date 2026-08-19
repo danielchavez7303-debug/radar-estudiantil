@@ -14,7 +14,8 @@ const GENERIC_SUMMARY_PATTERNS = [
 export const isGenericAssistantSummary = (value) => {
 	const summary = String(value ?? '').replace(/\s+/g, ' ').trim();
 	if (!summary) return true;
-	if (summary.length < 58 && /^(?:revisa|verifica|consulta|comprueba)\b/i.test(summary)) return true;
+	if (/^(?:revisa|revisar|verifica|verificar|consulta|consultar|comprueba|compruebe)\b/i.test(summary)
+		&& !/(?:te conviene|empieza|buena opción|recomiendo|porque|coincide|puedes|siguiente paso)/i.test(summary)) return true;
 	return GENERIC_SUMMARY_PATTERNS.some((pattern) => pattern.test(summary));
 };
 
