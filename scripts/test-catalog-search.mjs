@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
   catalogRelevanceBase,
   catalogRelevanceScore,
+  isCurrentlyOpen,
   isFreeCost,
   levelsOverlap,
   matchesCatalogFilters,
@@ -51,6 +52,11 @@ assert.equal(matchesCatalogFilters(nationalScholarship, { level: 'Preparatoria',
 assert.equal(matchesCatalogFilters(localCourse, { level: 'Preparatoria', location: 'Jalisco', status: 'abiertas' }), false);
 assert.equal(matchesCatalogFilters(localCourse, { location: 'Jalisco', status: 'cerrada', cost: 'pago' }), true);
 assert.equal(matchesCatalogFilters(nationalScholarship, { location: 'En línea' }), true);
+assert.equal(matchesCatalogFilters(nationalScholarship, { modality: 'En línea' }), true);
+assert.equal(matchesCatalogFilters(localCourse, { modality: 'En línea' }), false);
+assert.equal(matchesCatalogFilters({ ...nationalScholarship, modalidad: 'En línea e híbrida' }, { modality: 'Híbrida' }), true);
+assert.equal(isCurrentlyOpen({ estado: 'activa', fechaCierre: '2099-01-01' }, new Date('2026-08-21T12:00:00')), true);
+assert.equal(isCurrentlyOpen({ estado: 'proxima', fechaInicio: '2099-01-01' }, new Date('2026-08-21T12:00:00')), false);
 assert.equal(matchesCatalogFilters(nationalScholarship, { location: 'Sonora' }), true);
 assert.equal(matchesCatalogFilters(localCourse, { location: 'Sonora' }), false);
 

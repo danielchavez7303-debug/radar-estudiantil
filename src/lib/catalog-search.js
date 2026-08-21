@@ -128,8 +128,8 @@ export const isPaidCost = (value = '') => {
 
 export const modalityKind = (value = '') => {
   const normalized = normalizeText(value);
-  if (/en linea|autodirigida|remota|virtual|descargable|registro en linea|activacion en linea/.test(normalized)) return 'online';
   if (/hibrida|mixta|en linea y presencial|en linea e hibrida/.test(normalized)) return 'hibrida';
+  if (/en linea|autodirigida|remota|virtual|descargable|registro en linea|activacion en linea/.test(normalized)) return 'online';
   if (/presencial|plantel|clase|audicion/.test(normalized)) return 'presencial';
   return 'unknown';
 };
@@ -211,6 +211,24 @@ export const catalogRelevanceScore = (item, query = '') => {
   return baseScore + score + phraseBonus;
 };
 
+const parseCatalogDate = (value, endOfDay = false) => {
+  if (!value) return null;
+  const date = new Date(`${value}T${endOfDay ? '23:59:59' : '00:00:00'}`);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+export const isCurrentlyOpen = (item = {}, now = new Date()) => {
+  const status = normalizeText(item.estado ?? item.status);
+  if (['cerrada', 'finalizada', 'resultados'].includes(status)) return false;
+
+  const start = parseCatalogDate(item.fechaInicio ?? item.startDate);
+  const end = parseCatalogDate(item.fechaCierre ?? item.endDate, true);
+  if (start && now < start) return false;
+  if (end && now > end) return false;
+
+  return ['activa', 'permanente', 'proxima', 'enproceso'].includes(status);
+};
+
 export const matchesCatalogFilters = (item, filters = {}) => {
   const fields = catalogFields(item);
   const query = filters.query ?? '';
@@ -229,8 +247,16 @@ export const matchesCatalogFilters = (item, filters = {}) => {
   if (selectedLevel && !fields.levels.some((value) => levelsOverlap(selectedLevel, value))) return false;
 
   const selectedStatus = normalizeText(filters.status);
-  if (selectedStatus === 'abiertas' && !['activa', 'proxima', 'permanente', 'enproceso'].includes(fields.status[0])) return false;
+  if (selectedStatus === 'abiertas' && !isCurrentlyOpen(item)) return false;
   if (selectedStatus && selectedStatus !== 'abiertas' && !fields.status.includes(selectedStatus)) return false;
+
+  const selectedModality = normalizeText(filters.modality);
+  if (selectedModality) {
+    const wantedKind = modalityKind(selectedModality);
+    const actualKind = modalityKind(fields.modality.join(' '));
+    if (wantedKind !== 'unknown' && actualKind !== wantedKind) return false;
+    if (wantedKind === 'unknown' && !fields.modality.some((value) => value === selectedModality || value.includes(selectedModality))) return false;
+  }
 
   const selectedCost = normalizeText(filters.cost);
   if (selectedCost === 'gratis' && !fields.cost.some(isFreeCost)) return false;
