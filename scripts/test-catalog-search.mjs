@@ -55,6 +55,8 @@ assert.equal(matchesCatalogFilters(nationalScholarship, { location: 'En línea' 
 assert.equal(matchesCatalogFilters(nationalScholarship, { modality: 'En línea' }), true);
 assert.equal(matchesCatalogFilters(localCourse, { modality: 'En línea' }), false);
 assert.equal(matchesCatalogFilters({ ...nationalScholarship, modalidad: 'En línea e híbrida' }, { modality: 'Híbrida' }), true);
+assert.equal(matchesCatalogFilters({ ...nationalScholarship, modalidad: 'En línea autodirigida' }, { modality: 'Autodirigida' }), true);
+assert.equal(matchesCatalogFilters({ ...nationalScholarship, modalidad: 'En línea autodirigida' }, { modality: 'En línea' }), true);
 assert.equal(isCurrentlyOpen({ estado: 'activa', fechaCierre: '2099-01-01' }, new Date('2026-08-21T12:00:00')), true);
 assert.equal(isCurrentlyOpen({ estado: 'proxima', fechaInicio: '2099-01-01' }, new Date('2026-08-21T12:00:00')), false);
 assert.equal(matchesCatalogFilters(nationalScholarship, { location: 'Sonora' }), true);
