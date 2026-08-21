@@ -29,6 +29,8 @@ const QUERY_ALIASES = {
   virtual: 'linea',
   remoto: 'linea',
   descuentos: 'descuento',
+  apoyos: 'apoyo',
+  ayudas: 'apoyo',
   cursos: 'curso',
   talleres: 'taller',
   concursos: 'concurso',
@@ -55,9 +57,9 @@ const STATUS_SCORES = {
   permanente: 105,
   proxima: 90,
   enProceso: 72,
-  resultados: 8,
-  cerrada: -100,
-  finalizada: -120,
+  resultados: -280,
+  cerrada: -420,
+  finalizada: -460,
 };
 
 const CATEGORY_SCORES = {
@@ -230,6 +232,18 @@ export const isCurrentlyOpen = (item = {}, now = new Date()) => {
   return ['activa', 'permanente', 'proxima', 'enproceso'].includes(status);
 };
 
+export const ageMatchesOpportunity = (item = {}, age) => {
+  const parsedAge = Number(age);
+  if (!Number.isFinite(parsedAge) || parsedAge < 0) return true;
+
+  const minimum = item.edadMinima === null || item.edadMinima === undefined || item.edadMinima === '' ? null : Number(item.edadMinima);
+  const maximum = item.edadMaxima === null || item.edadMaxima === undefined || item.edadMaxima === '' ? null : Number(item.edadMaxima);
+  if (Number.isFinite(minimum) && parsedAge < minimum) return false;
+  if (Number.isFinite(maximum) && parsedAge > maximum) return false;
+  // Si la ficha no especifica edad, la mantenemos: el dato es desconocido, no incompatible.
+  return true;
+};
+
 export const matchesCatalogFilters = (item, filters = {}) => {
   const fields = catalogFields(item);
   const query = filters.query ?? '';
@@ -246,6 +260,9 @@ export const matchesCatalogFilters = (item, filters = {}) => {
 
   const selectedLevel = normalizeText(filters.level);
   if (selectedLevel && !fields.levels.some((value) => levelsOverlap(selectedLevel, value))) return false;
+
+  const ageValue = String(filters.age ?? '').trim();
+  if (ageValue && !ageMatchesOpportunity(item, ageValue)) return false;
 
   const selectedStatus = normalizeText(filters.status);
   if (selectedStatus === 'abiertas' && !isCurrentlyOpen(item)) return false;

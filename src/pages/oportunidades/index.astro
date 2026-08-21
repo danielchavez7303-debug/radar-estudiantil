@@ -84,12 +84,12 @@ const relevanceBase = catalogRelevanceBase;
 					<span>Empieza con una ruta sencilla.</span>
 				</div>
 				<div class="quick-link-list">
-					<a class="quick-link" href={`${baseUrl}oportunidades?q=gratuito`}>
+					<a class="quick-link" href={`${baseUrl}oportunidades?costo=gratis&vigencia=abiertas`}>
 						<span class="quick-link-icon" aria-hidden="true">$</span>
 						<span><strong>Gratis</strong><small>Sin costo de inscripción</small></span>
 						<span class="quick-link-arrow" aria-hidden="true">↗</span>
 					</a>
-					<a class="quick-link" href={`${baseUrl}oportunidades?q=en%20linea`}>
+					<a class="quick-link" href={`${baseUrl}oportunidades?modalidad=En%20l%C3%ADnea`}>
 						<span class="quick-link-icon" aria-hidden="true">⌁</span>
 						<span><strong>En línea</strong><small>Aprende desde donde estés</small></span>
 						<span class="quick-link-arrow" aria-hidden="true">↗</span>
@@ -159,6 +159,10 @@ const relevanceBase = catalogRelevanceBase;
 						</select>
 					</label>
 					<label>
+						<span>Mi edad</span>
+						<input id="filtro-edad" type="number" min="3" max="99" inputmode="numeric" placeholder="Ej. 16" aria-label="Filtrar por edad" />
+					</label>
+					<label>
 						<span>Vigencia</span>
 						<select id="filtro-vigencia">
 							<option value="">Cualquier vigencia</option>
@@ -188,7 +192,7 @@ const relevanceBase = catalogRelevanceBase;
 					<button type="button" class="filter-preset" data-preset="online">En línea</button>
 					<button type="button" class="filter-preset" data-preset="nacional">Nacional</button>
 				</div>
-				<p class="catalog-filter-note">Al elegir un estado aparecen sus oportunidades locales y también las opciones nacionales que aplican en todo México.</p>
+				<p class="catalog-filter-note">Al elegir un estado aparecen sus opciones locales y también las nacionales. La edad solo excluye incompatibilidades conocidas.</p>
 			</div>
 			<div class="catalog-active-filters" id="filtros-activos" aria-live="polite" hidden></div>
 
@@ -271,6 +275,12 @@ const relevanceBase = catalogRelevanceBase;
 				<span aria-hidden="true">⌕</span>
 				<h2 id="catalog-empty-title">No encontramos coincidencias.</h2>
 				<p id="catalog-empty-copy">Prueba con otra palabra o limpia los filtros para ver todo el catálogo.</p>
+				<div class="catalog-empty-suggestions" id="catalog-empty-suggestions" hidden>
+					<span>Prueba con:</span>
+					<button type="button" data-empty-query="becas">Becas</button>
+					<button type="button" data-empty-query="cursos gratuitos">Cursos gratuitos</button>
+					<button type="button" data-empty-query="en línea">En línea</button>
+				</div>
 				<button class="empty-action" id="empty-clear" type="button">Restablecer búsqueda</button>
 			</div>
 			<div class="catalog-state catalog-loading" id="catalog-loading" role="status" hidden>
@@ -296,6 +306,8 @@ const relevanceBase = catalogRelevanceBase;
 		const levelFilter = document.querySelector<HTMLSelectElement>('#filtro-nivel');
 		const statusFilter = document.querySelector<HTMLSelectElement>('#filtro-vigencia');
 		const costFilter = document.querySelector<HTMLSelectElement>('#filtro-costo');
+		const ageFilter = document.querySelector<HTMLInputElement>('#filtro-edad');
+		const emptySuggestions = [...document.querySelectorAll<HTMLButtonElement>('[data-empty-query]')];
 		const sortSelect = document.querySelector<HTMLSelectElement>('#ordenar');
 		const clearButton = document.querySelector<HTMLButtonElement>('#limpiar');
 		const emptyClearButton = document.querySelector<HTMLButtonElement>('#empty-clear');
@@ -335,6 +347,7 @@ const relevanceBase = catalogRelevanceBase;
 		if (levelFilter) levelFilter.value = params.get('nivel') ?? '';
 		if (statusFilter) statusFilter.value = params.get('vigencia') ?? '';
 		if (costFilter) costFilter.value = params.get('costo') ?? '';
+		if (ageFilter) ageFilter.value = params.get('edad') ?? '';
 		if (favoritesOnly) favoritesOnly.checked = params.get('favoritos') === '1';
 		if (sortSelect) sortSelect.value = params.get('orden') ?? 'relevancia';
 		if (filtersPanel && (params.toString() || window.innerWidth > 700)) filtersPanel.classList.add('is-open');
@@ -355,6 +368,7 @@ const relevanceBase = catalogRelevanceBase;
 				['nivel', levelFilter?.value ?? ''],
 				['vigencia', statusFilter?.value ?? ''],
 				['costo', costFilter?.value ?? ''],
+				['edad', ageFilter?.value ?? ''],
 			].forEach(([key, value]) => {
 				if (value) nextParams.set(key, value);
 			});
@@ -411,6 +425,7 @@ const relevanceBase = catalogRelevanceBase;
 				{ key: 'nivel', label: 'Nivel', value: levelFilter?.value ?? '' },
 				{ key: 'vigencia', label: 'Vigencia', value: statusFilter?.value ?? '' },
 				{ key: 'costo', label: 'Costo', value: costFilter?.value ?? '' },
+				{ key: 'edad', label: 'Edad', value: ageFilter?.value ? `${ageFilter.value} años` : '' },
 				{ key: 'favoritos', label: 'Vista', value: favoritesOnly?.checked ? 'Solo guardadas' : '' },
 			].filter((item) => item.value);
 			selected.forEach((item) => {
@@ -474,6 +489,8 @@ const relevanceBase = catalogRelevanceBase;
 			estado: card.dataset.estado ?? '',
 			fechaInicio: card.dataset.inicio ?? '',
 			fechaCierre: card.dataset.cierre ?? '',
+			edadMinima: card.dataset.edadMinima ? Number(card.dataset.edadMinima) : null,
+			edadMaxima: card.dataset.edadMaxima ? Number(card.dataset.edadMaxima) : null,
 			costo: card.dataset.costo ?? '',
 			modalidad: card.dataset.modalidad ?? '',
 			search: card.dataset.search ?? '',
@@ -502,6 +519,7 @@ const relevanceBase = catalogRelevanceBase;
 					level: levelFilter?.value ?? '',
 					status: statusFilter?.value ?? '',
 					cost: costFilter?.value ?? '',
+					age: ageFilter?.value ?? '',
 					favoritesOnly: selectedFavorites,
 					favorites,
 				};
@@ -516,15 +534,18 @@ const relevanceBase = catalogRelevanceBase;
 				if (count) count.textContent = String(visible);
 				if (resultsHelp) {
 					resultsHelp.textContent = visible === cards.length
-						? 'Las fichas enlazan a una página con detalles, requisitos y fuente oficial.'
+						? 'Ordenadas por vigencia, alcance, costo y coincidencia con tu búsqueda.'
 						: `Mostrando ${visible} de ${cards.length} oportunidades. Ajusta los filtros para ampliar o afinar la búsqueda.`;
 				}
+				if (emptySuggestions.length) emptySuggestions.forEach((button) => {
+					button.hidden = selectedFavorites || visible !== 0;
+				});
 				if (emptyState) emptyState.hidden = visible !== 0;
 				if (emptyTitle) emptyTitle.textContent = selectedFavorites ? 'Todavía no tienes guardadas.' : 'No encontramos coincidencias.';
 				if (emptyCopy) emptyCopy.textContent = selectedFavorites
 					? 'Guarda una oportunidad con el corazón para verla aquí cuando vuelvas.'
 					: 'Prueba con otra palabra, cambia un filtro o restablece la búsqueda.';
-				if (clearButton) clearButton.hidden = !query && !typeFilter?.value && !areaFilter?.value && !locationFilter?.value && !institutionFilter?.value && !modalityFilter?.value && !levelFilter?.value && !statusFilter?.value && !costFilter?.value && !selectedFavorites;
+				if (clearButton) clearButton.hidden = !query && !typeFilter?.value && !areaFilter?.value && !locationFilter?.value && !institutionFilter?.value && !modalityFilter?.value && !levelFilter?.value && !statusFilter?.value && !costFilter?.value && !ageFilter?.value && !selectedFavorites;
 				renderActiveFilters();
 				syncUrl();
 				sortCards();
@@ -544,6 +565,7 @@ const relevanceBase = catalogRelevanceBase;
 			if (levelFilter) levelFilter.value = '';
 			if (statusFilter) statusFilter.value = '';
 			if (costFilter) costFilter.value = '';
+			if (ageFilter) ageFilter.value = '';
 			if (favoritesOnly) favoritesOnly.checked = false;
 			if (sortSelect) sortSelect.value = 'relevancia';
 			updateResults();
@@ -559,6 +581,7 @@ const relevanceBase = catalogRelevanceBase;
 		levelFilter?.addEventListener('change', updateResults);
 		statusFilter?.addEventListener('change', updateResults);
 		costFilter?.addEventListener('change', updateResults);
+		ageFilter?.addEventListener('input', updateResults);
 		favoritesOnly?.addEventListener('change', updateResults);
 		sortSelect?.addEventListener('change', () => {
 			sortCards();
@@ -589,8 +612,17 @@ const relevanceBase = catalogRelevanceBase;
 			if (key === 'nivel' && levelFilter) levelFilter.value = '';
 			if (key === 'vigencia' && statusFilter) statusFilter.value = '';
 			if (key === 'costo' && costFilter) costFilter.value = '';
+			if (key === 'edad' && ageFilter) ageFilter.value = '';
 			if (key === 'favoritos' && favoritesOnly) favoritesOnly.checked = false;
 			updateResults();
+		});
+		emptySuggestions.forEach((button) => {
+			button.addEventListener('click', () => {
+				if (!searchInput) return;
+				searchInput.value = button.dataset.emptyQuery ?? '';
+				updateResults();
+				searchInput.focus();
+			});
 		});
 		filterPresets.forEach((button) => {
 			button.addEventListener('click', () => {
@@ -617,6 +649,7 @@ const relevanceBase = catalogRelevanceBase;
 			if (levelFilter) levelFilter.value = nextParams.get('nivel') ?? '';
 			if (statusFilter) statusFilter.value = nextParams.get('vigencia') ?? '';
 			if (costFilter) costFilter.value = nextParams.get('costo') ?? '';
+			if (ageFilter) ageFilter.value = nextParams.get('edad') ?? '';
 			if (favoritesOnly) favoritesOnly.checked = nextParams.get('favoritos') === '1';
 			if (sortSelect) sortSelect.value = nextParams.get('orden') ?? 'relevancia';
 			updateResults();
