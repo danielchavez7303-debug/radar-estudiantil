@@ -128,8 +128,8 @@ export const isPaidCost = (value = '') => {
 
 export const modalityKind = (value = '') => {
   const normalized = normalizeText(value);
-  if (/en linea|autodirigida|remota|virtual|descargable|registro en linea|activacion en linea/.test(normalized)) return 'online';
   if (/hibrida|mixta|en linea y presencial|en linea e hibrida/.test(normalized)) return 'hibrida';
+  if (/en linea|autodirigida|remota|virtual|descargable|registro en linea|activacion en linea/.test(normalized)) return 'online';
   if (/presencial|plantel|clase|audicion/.test(normalized)) return 'presencial';
   return 'unknown';
 };
