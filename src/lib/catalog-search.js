@@ -236,8 +236,8 @@ export const ageMatchesOpportunity = (item = {}, age) => {
   const parsedAge = Number(age);
   if (!Number.isFinite(parsedAge) || parsedAge < 0) return true;
 
-  const minimum = Number(item.edadMinima);
-  const maximum = Number(item.edadMaxima);
+  const minimum = item.edadMinima === null || item.edadMinima === undefined || item.edadMinima === '' ? null : Number(item.edadMinima);
+  const maximum = item.edadMaxima === null || item.edadMaxima === undefined || item.edadMaxima === '' ? null : Number(item.edadMaxima);
   if (Number.isFinite(minimum) && parsedAge < minimum) return false;
   if (Number.isFinite(maximum) && parsedAge > maximum) return false;
   // Si la ficha no especifica edad, la mantenemos: el dato es desconocido, no incompatible.
