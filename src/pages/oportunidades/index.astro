@@ -307,6 +307,7 @@ const relevanceBase = catalogRelevanceBase;
 		const statusFilter = document.querySelector<HTMLSelectElement>('#filtro-vigencia');
 		const costFilter = document.querySelector<HTMLSelectElement>('#filtro-costo');
 		const ageFilter = document.querySelector<HTMLInputElement>('#filtro-edad');
+		const emptySuggestionsPanel = document.querySelector<HTMLElement>('#catalog-empty-suggestions');
 		const emptySuggestions = [...document.querySelectorAll<HTMLButtonElement>('[data-empty-query]')];
 		const sortSelect = document.querySelector<HTMLSelectElement>('#ordenar');
 		const clearButton = document.querySelector<HTMLButtonElement>('#limpiar');
@@ -537,9 +538,7 @@ const relevanceBase = catalogRelevanceBase;
 						? 'Ordenadas por vigencia, alcance, costo y coincidencia con tu búsqueda.'
 						: `Mostrando ${visible} de ${cards.length} oportunidades. Ajusta los filtros para ampliar o afinar la búsqueda.`;
 				}
-				if (emptySuggestions.length) emptySuggestions.forEach((button) => {
-					button.hidden = selectedFavorites || visible !== 0;
-				});
+				if (emptySuggestionsPanel) emptySuggestionsPanel.hidden = selectedFavorites || visible !== 0;
 				if (emptyState) emptyState.hidden = visible !== 0;
 				if (emptyTitle) emptyTitle.textContent = selectedFavorites ? 'Todavía no tienes guardadas.' : 'No encontramos coincidencias.';
 				if (emptyCopy) emptyCopy.textContent = selectedFavorites
