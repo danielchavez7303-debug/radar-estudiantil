@@ -129,7 +129,8 @@ export const isPaidCost = (value = '') => {
 export const modalityKind = (value = '') => {
   const normalized = normalizeText(value);
   if (/hibrida|mixta|en linea y presencial|en linea e hibrida/.test(normalized)) return 'hibrida';
-  if (/en linea|autodirigida|remota|virtual|descargable|registro en linea|activacion en linea/.test(normalized)) return 'online';
+  if (/autodirigida|autogestiva/.test(normalized)) return 'autodirigida';
+  if (/en linea|remota|virtual|descargable|registro en linea|activacion en linea/.test(normalized)) return 'online';
   if (/presencial|plantel|clase|audicion/.test(normalized)) return 'presencial';
   return 'unknown';
 };
@@ -254,7 +255,8 @@ export const matchesCatalogFilters = (item, filters = {}) => {
   if (selectedModality) {
     const wantedKind = modalityKind(selectedModality);
     const actualKind = modalityKind(fields.modality.join(' '));
-    if (wantedKind !== 'unknown' && actualKind !== wantedKind) return false;
+    const matchesOnline = wantedKind === 'online' && ['online', 'autodirigida'].includes(actualKind);
+    if (wantedKind !== 'unknown' && actualKind !== wantedKind && !matchesOnline) return false;
     if (wantedKind === 'unknown' && !fields.modality.some((value) => value === selectedModality || value.includes(selectedModality))) return false;
   }
 
@@ -264,7 +266,7 @@ export const matchesCatalogFilters = (item, filters = {}) => {
   if (selectedCost && !['gratis', 'pago'].includes(selectedCost) && !fields.cost.includes(selectedCost)) return false;
 
   const selectedLocation = normalizeText(filters.location);
-  if (selectedLocation === 'en linea' && modalityKind(fields.modality.join(' ')) !== 'online' && !fields.locations.includes('en linea')) return false;
+  if (selectedLocation === 'en linea' && !['online', 'autodirigida'].includes(modalityKind(fields.modality.join(' '))) && !fields.locations.includes('en linea')) return false;
   if (selectedLocation === 'nacional' && !isNationalOpportunity({ cobertura: fields.coverage[0], estados: fields.locations })) return false;
   if (selectedLocation && !['en linea', 'nacional'].includes(selectedLocation)) {
     const stateMatch = fields.locations.includes(selectedLocation);
@@ -281,7 +283,7 @@ export const catalogRelevanceBase = (opportunity = {}) => {
   let score = STATUS_SCORES[opportunity.estado] ?? 0;
   score += CATEGORY_SCORES[opportunity.categoria] ?? 0;
   if (isNationalOpportunity(opportunity)) score += 28;
-  if (modalityKind(opportunity.modalidad) === 'online') score += 10;
+  if (['online', 'autodirigida'].includes(modalityKind(opportunity.modalidad))) score += 10;
   if (isFreeCost(opportunity.costo)) score += 12;
   score += Math.min(asList(opportunity.niveles).length, 5) * 4;
   if (opportunity.edadMinima === null || opportunity.edadMinima === undefined) score += 2;
