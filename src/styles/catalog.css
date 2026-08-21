@@ -923,47 +923,6 @@
 		display: none;
 	}
 
-	.assistant-radar-head {
-		align-items: flex-start;
-		flex-direction: column;
-		gap: 0.9rem;
-		padding: 1rem;
-	}
-
-	.assistant-radar-toggle {
-		width: 100%;
-	}
-
-	.assistant-radar-panel {
-		padding: 0 1rem 1rem;
-	}
-
-	.assistant-form-grid {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-	}
-
-	.assistant-form-actions {
-		align-items: stretch;
-		flex-direction: column;
-	}
-
-	.assistant-form-actions p {
-		max-width: none;
-	}
-
-	.assistant-submit {
-		width: 100%;
-	}
-
-	.assistant-results-head {
-		align-items: stretch;
-		flex-direction: column;
-	}
-
-	.assistant-reset {
-		align-self: flex-start;
-	}
-
 	.catalog-toolbar {
 		grid-template-columns: 1fr;
 		padding: 1rem;
